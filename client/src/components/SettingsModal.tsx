@@ -12,7 +12,9 @@ import {
   Cpu, 
   BellRing,
   Lock,
-  Sparkles
+  Sparkles,
+  Clock,
+  Zap
 } from 'lucide-react';
 import { AppSettings } from '../types';
 import { updateSettings, testApiKey } from '../services/api';
@@ -42,10 +44,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [model, setModel] = useState(settings.model || 'gemini-1.5-flash');
   const [soundEnabled, setSoundEnabled] = useState(settings.soundEnabled ?? true);
   const [proactiveMessages, setProactiveMessages] = useState(settings.proactiveMessages ?? true);
+  const [realisticDelays, setRealisticDelays] = useState(settings.realisticDelays ?? true);
 
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const currentHour = new Date().getHours();
+  const isNightNow = currentHour >= 22 || currentHour < 6;
 
   const handleTestKey = async () => {
     try {
@@ -72,6 +78,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         model,
         soundEnabled,
         proactiveMessages,
+        realisticDelays,
         theme
       });
       soundFX.setEnabled(soundEnabled);
@@ -227,6 +234,70 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <h4 className="font-bold text-xs uppercase tracking-wider text-gray-400">
               User Experience Preferences
             </h4>
+
+            {/* Realistic Human Reply Delays */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Clock className="w-4 h-4 text-pink-400" />
+                  <div>
+                    <div className="font-semibold text-xs flex items-center gap-1.5">
+                      <span>Realistic Reply Delays</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-pink-500/20 text-pink-400 font-bold">
+                        Recommended
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-gray-400">
+                      Simulates authentic human pacing instead of instant replies every time
+                    </div>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={realisticDelays}
+                  onChange={e => setRealisticDelays(e.target.checked)}
+                  className="w-4 h-4 rounded text-pink-500 cursor-pointer"
+                />
+              </div>
+
+              {realisticDelays && (
+                <div className={`p-3 rounded-2xl text-xs space-y-2 ${
+                  theme === 'dark' ? 'bg-[#18181b] border border-gray-800' : 'bg-gray-50 border border-gray-200'
+                }`}>
+                  <div className="font-bold text-[10px] text-pink-400 uppercase tracking-wider">
+                    Timing Distribution Rules
+                  </div>
+                  <div className="space-y-1.5 text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <span>☀️</span>
+                        <span className="font-medium">Daytime (6 AM – 10 PM):</span>
+                      </span>
+                      <span className="text-gray-400 text-[10px] font-mono">
+                        Instant (35%) • 2-5m (45%) • ~10m (20%)
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <span>🌙</span>
+                        <span className="font-medium text-purple-300">Night (10 PM – 6 AM):</span>
+                      </span>
+                      <span className="text-emerald-400 font-semibold text-[10px] font-mono">
+                        Fast within 1-2 min
+                      </span>
+                    </div>
+                  </div>
+                  <div className="pt-1.5 border-t border-gray-700/30 flex items-center justify-between text-[10px] text-gray-400">
+                    <span>Your device time: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className={`px-2 py-0.5 rounded-full font-semibold ${
+                      isNightNow ? 'bg-purple-500/20 text-purple-300' : 'bg-amber-500/20 text-amber-300'
+                    }`}>
+                      {isNightNow ? '🌙 Night mode active' : '☀️ Daytime mode active'}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Sound Toggle */}
             <div className="flex items-center justify-between">

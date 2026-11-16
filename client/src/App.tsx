@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Character, AppSettings } from './types';
+import { Character, AppSettings, User } from './types';
 import { fetchCharacters, fetchSettings } from './services/api';
 import { LandingPage } from './components/LandingPage';
 import { ChatInterface } from './components/ChatInterface';
 import { CharacterCreator } from './components/CharacterCreator';
 import { SettingsModal } from './components/SettingsModal';
+import { AccountModal, DEMO_RETURNING_USER } from './components/AccountModal';
 import { soundFX } from './utils/audio';
 
 export const App: React.FC = () => {
@@ -12,6 +13,17 @@ export const App: React.FC = () => {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [characters, setCharacters] = useState<Character[]>([]);
   const [activeCharacterId, setActiveCharacterId] = useState<string>('');
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      const stored = localStorage.getItem('velora_current_user');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {
+      console.error(e);
+    }
+    // Default to Alex for immediate exploration, or null
+    return DEMO_RETURNING_USER;
+  });
+  const [showAccountModal, setShowAccountModal] = useState<boolean>(false);
   const [settings, setSettings] = useState<AppSettings>({
     apiKey: '',
     hasApiKey: false,
@@ -19,7 +31,8 @@ export const App: React.FC = () => {
     model: 'gemini-1.5-flash',
     soundEnabled: true,
     theme: 'dark',
-    proactiveMessages: true
+    proactiveMessages: true,
+    realisticDelays: true
   });
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -56,7 +69,46 @@ export const App: React.FC = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  // Auth Routing: after logging in -> if new user then create, if old then to chat
+  const handleLogin = (user: User, isNewUser: boolean) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('velora_current_user', JSON.stringify(user));
+    } catch (e) {
+      console.error(e);
+    }
+    setShowAccountModal(false);
+
+    if (isNewUser || characters.length === 0) {
+      // New user -> direct to create her first companion!
+      setView('create');
+    } else {
+      // Old user -> direct straight to chat section with her!
+      if (!activeCharacterId && characters.length > 0) {
+        setActiveCharacterId(characters[0].id);
+      }
+      setView('chat');
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('velora_current_user');
+    } catch (e) {
+      console.error(e);
+    }
+    setShowAccountModal(false);
+    setView('landing');
+  };
+
   const handleOpenChat = (charId?: string) => {
+    if (!currentUser) {
+      // Prompt user to log in or continue
+      setShowAccountModal(true);
+      return;
+    }
+
     if (charId) {
       setActiveCharacterId(charId);
     } else if (!activeCharacterId && characters.length > 0) {
@@ -65,9 +117,14 @@ export const App: React.FC = () => {
     setView('chat');
   };
 
+  const handleStartCreate = () => {
+    setView('create');
+  };
+
   const handleCharacterCreated = (newChar: Character) => {
     setCharacters(prev => [newChar, ...prev]);
     setActiveCharacterId(newChar.id);
+    // After creating a companion, direct straight to chat with her!
     setView('chat');
   };
 
@@ -90,12 +147,14 @@ export const App: React.FC = () => {
     <div className={`min-h-screen ${theme === 'dark' ? 'dark' : ''}`}>
       {view === 'landing' && (
         <LandingPage
-          onStartCreate={() => setView('create')}
+          onStartCreate={handleStartCreate}
           onOpenChat={handleOpenChat}
           onOpenSettings={() => setShowSettings(true)}
           characters={characters}
           theme={theme}
           onToggleTheme={handleToggleTheme}
+          currentUser={currentUser}
+          onOpenAccount={() => setShowAccountModal(true)}
         />
       )}
 
@@ -119,9 +178,30 @@ export const App: React.FC = () => {
           theme={theme}
           onToggleTheme={handleToggleTheme}
           onNavigateDiscover={() => setView('landing')}
+          currentUser={currentUser}
+          onOpenAccount={() => setShowAccountModal(true)}
         />
       )}
 
+      {/* Account Profile & Auth Modal */}
+      <AccountModal
+        isOpen={showAccountModal}
+        onClose={() => setShowAccountModal(false)}
+        currentUser={currentUser}
+        onLogin={handleLogin}
+        onLogout={handleLogout}
+        characters={characters}
+        onSelectCharacter={(id) => {
+          setActiveCharacterId(id);
+          setView('chat');
+        }}
+        onStartCreate={() => setView('create')}
+        onOpenSettings={() => setShowSettings(true)}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+      />
+
+      {/* Settings & API Key Modal */}
       <SettingsModal
         settings={settings}
         isOpen={showSettings}

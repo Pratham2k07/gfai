@@ -1,4 +1,4 @@
-import { Character, Message, Memory, AppSettings } from '../types';
+import { Character, Message, Memory, AppSettings, PendingReplyInfo } from '../types';
 
 const API_BASE = '/api';
 
@@ -22,7 +22,7 @@ export async function createCharacter(character: Partial<Character>): Promise<Ch
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'Failed to create character');
+    throw new Error(data.error || data.message || `Failed to create character (HTTP ${res.status})`);
   }
   return res.json();
 }
@@ -50,17 +50,21 @@ export async function fetchMessages(characterId: string): Promise<Message[]> {
 
 export async function sendMessage(
   characterId: string,
-  payload: { message?: string; media_url?: string; media_type?: 'image' | 'audio' }
+  payload: { message?: string; media_url?: string; media_type?: 'image' | 'audio'; clientHour?: number; forceInstant?: boolean }
 ): Promise<{
   userMessage: Message;
-  aiMessage: Message;
+  aiMessage?: Message;
+  pendingReply?: PendingReplyInfo;
   newMemory?: Memory;
   relationshipUpdate?: { level: number; title: string; xp: number; leveledUp: boolean };
 }> {
   const res = await fetch(`${API_BASE}/characters/${characterId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      ...payload,
+      clientHour: payload.clientHour ?? new Date().getHours()
+    }),
   });
 
   const data = await res.json();
@@ -71,6 +75,34 @@ export async function sendMessage(
     throw error;
   }
   return data;
+}
+
+export async function fetchReplyStatus(characterId: string): Promise<{ pendingReply: PendingReplyInfo | null }> {
+  const res = await fetch(`${API_BASE}/characters/${characterId}/reply-status`);
+  if (!res.ok) throw new Error('Failed to fetch reply status');
+  return res.json();
+}
+
+export async function skipReplyDelay(characterId: string): Promise<{
+  aiMessage: Message;
+  newMemory?: Memory;
+  relationshipUpdate?: { level: number; title: string; xp: number; leveledUp: boolean };
+}> {
+  const res = await fetch(`${API_BASE}/characters/${characterId}/skip-delay`, {
+    method: 'POST'
+  });
+  if (!res.ok) throw new Error('Failed to skip delay');
+  return res.json();
+}
+
+export async function fetchAllPendingReplies(): Promise<Record<string, PendingReplyInfo>> {
+  try {
+    const res = await fetch(`${API_BASE}/pending-replies`);
+    if (!res.ok) return {};
+    return res.json();
+  } catch {
+    return {};
+  }
 }
 
 export async function clearChatHistory(characterId: string): Promise<void> {

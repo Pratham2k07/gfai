@@ -6,7 +6,7 @@
   html, body {
     background-color: #000000 !important;
     color: #ffffff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     @apply m-0 p-0 antialiased select-none;
     -webkit-tap-highlight-color: transparent;
   }
@@ -138,11 +138,11 @@
 .animate-pulse-ring { animation: pulse-ring 2s ease-out infinite; }
 
 .shimmer-text {
-  background: linear-gradient(90deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5, #962FBF, #D62976, #FA7E1E, #FEDA75);
+  background: linear-gradient(90deg, #FF6584, #FF7B54, #D62976, #962FBF, #4F5BD5, #962FBF, #D62976, #FF7B54, #FF6584);
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: shimmer-x 4s linear infinite;
+  animation: shimmer-x 4.5s linear infinite;
 }
 
 /* Audio Waveform */

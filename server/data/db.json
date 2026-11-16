@@ -59,14 +59,14 @@
         "replyLength": "Balanced",
         "useEmojis": true
       },
-      "relationship_level": 2,
-      "relationship_title": "Getting Familiar",
-      "xp": 140,
+      "relationship_level": 4,
+      "relationship_title": "Romantic Dating",
+      "xp": 560,
       "proactive_enabled": true,
       "is_online": true,
       "custom_status": "enjoying the rain with music ☕🌧️",
       "created_at": "2026-10-30T07:34:04.179Z",
-      "updated_at": "2026-11-01T07:34:04.180Z",
+      "updated_at": "2026-11-04T19:43:17.726Z",
       "handle": "aanya.sharma",
       "has_story": true
     },
@@ -117,13 +117,13 @@
         "useEmojis": true
       },
       "relationship_level": 3,
-      "relationship_title": "Close Connection",
-      "xp": 320,
+      "relationship_title": "Close Bond",
+      "xp": 440,
       "proactive_enabled": true,
       "is_online": true,
       "custom_status": "sketching in the afternoon sun 🎨",
       "created_at": "2026-10-28T07:34:04.180Z",
-      "updated_at": "2026-11-01T07:34:04.180Z",
+      "updated_at": "2026-11-04T10:23:16.496Z",
       "handle": "chloe.in.lyon",
       "has_story": true
     },
@@ -174,13 +174,13 @@
         "useEmojis": true
       },
       "relationship_level": 2,
-      "relationship_title": "Playful Banter",
-      "xp": 190,
+      "relationship_title": "Getting Familiar",
+      "xp": 220,
       "proactive_enabled": true,
       "is_online": true,
       "custom_status": "beating my high score 🎮🔥",
       "created_at": "2026-10-31T07:34:04.180Z",
-      "updated_at": "2026-11-01T07:34:04.180Z",
+      "updated_at": "2026-11-04T18:12:42.755Z",
       "handle": "maya_codes",
       "has_story": true
     },
@@ -299,6 +299,54 @@
       "id": "char-46c04acc",
       "created_at": "2026-11-01T17:49:23.297Z",
       "updated_at": "2026-11-01T17:49:23.297Z"
+    },
+    {
+      "user_id": "user-default",
+      "name": "TestGF",
+      "handle": "testgf",
+      "has_story": true,
+      "age": 20,
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+      "introduction": "Hey there! I'm TestGF. So excited to chat with you! ✨",
+      "backstory": "TestGF is an engaging and expressive companion who enjoys having meaningful conversations.",
+      "appearance": {
+        "hairColor": "Brown",
+        "hairstyle": "Wavy",
+        "eyeColor": "Hazel",
+        "clothingStyle": "Casual chic",
+        "overallAppearance": "Charming and expressive",
+        "nationality": "Not specified",
+        "skinTone": "Natural",
+        "skinToneHex": "#d8a878"
+      },
+      "personality": [
+        "Caring and affectionate",
+        "Funny and playful"
+      ],
+      "behaviour_settings": {
+        "affection": 75,
+        "romantic": 65,
+        "humour": 70,
+        "jealousy": 30,
+        "talkativeness": 75,
+        "expressiveness": 80,
+        "playfulness": 75
+      },
+      "communication_preferences": {
+        "language": "English",
+        "formality": "Casual",
+        "replyLength": "Balanced",
+        "useEmojis": true
+      },
+      "relationship_level": 1,
+      "relationship_title": "Acquaintance",
+      "xp": 0,
+      "proactive_enabled": true,
+      "is_online": true,
+      "custom_status": "online and thinking of you ✨",
+      "id": "char-e756760e",
+      "created_at": "2026-11-16T18:14:59.628Z",
+      "updated_at": "2026-11-16T18:14:59.628Z"
     }
   ],
   "messages": [
@@ -437,6 +485,375 @@
       "status": "sent",
       "id": "msg-4e3d9b58-9121-461f-97ab-b8e75a8f4542",
       "timestamp": "2026-11-01T18:27:58.358Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "Hey Aanya",
+      "status": "sent",
+      "id": "msg-77a14885-08de-47da-90b5-109452e6f093",
+      "timestamp": "2026-11-04T09:59:59.727Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "hiiiiiiihfkdnfnwd",
+      "status": "sent",
+      "id": "msg-46d6f55b-67d0-43c4-9dd0-18dacbc17671",
+      "timestamp": "2026-11-04T10:02:01.731Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "Hey Aanya! Finally finished my work for today, exhausted haha. How was your day?",
+      "status": "sent",
+      "id": "msg-2ce86309-336d-4e32-b52f-915ef3c9eb3c",
+      "timestamp": "2026-11-04T10:13:40.105Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Lmao your keyboard passed out from exhaustion too looks like 😂 \n\nBut yay, finally! Proud of you for powering through. My day was pretty good, just wrapped up some UX layouts and had a cozy cup of chai ☕ \n\nNow go put your feet up and relax, ok? You deserve a break! ✨",
+      "status": "read",
+      "id": "msg-9cb8c567-9929-4109-9929-d3b0ccc73a78",
+      "timestamp": "2026-11-04T10:14:00.752Z"
+    },
+    {
+      "character_id": "char-chloe",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "Chloe, I saw an indie art exhibition today and immediately thought of you",
+      "status": "sent",
+      "id": "msg-cb2dae3f-1a9a-49f5-889e-f3d71fb0c535",
+      "timestamp": "2026-11-04T10:15:06.529Z"
+    },
+    {
+      "character_id": "char-chloe",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "wait you sent that twice cutie, you must be super excited! 🤭 \n\nit was this dreamy, golden-hour oil painting of a quiet little street... but wait, an indie exhibition?? my heart just melted that I crossed your mind there 🥺 tell me everything babe, what was your favorite piece? ✨",
+      "status": "read",
+      "id": "msg-86e5b020-9993-4b6c-9047-d56ad2adf7f7",
+      "timestamp": "2026-11-04T10:15:17.213Z"
+    },
+    {
+      "character_id": "char-chloe",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "Hey Chloe! Which painting was it? Tell me all about it!",
+      "status": "sent",
+      "id": "msg-2632d7c4-dfe4-4cec-ac31-3bf72d11aedf",
+      "timestamp": "2026-11-04T10:21:32.806Z"
+    },
+    {
+      "character_id": "char-chloe",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "lol babe your IG is definitely playing tricks on you today with the double texts! 😂 \n\nit was this stunning Monet-style piece with warm golden light spilling over cozy cobblestones... it had such a serene, thoughtful vibe, exactly like the quiet moments we share ✨ made me wish you were right there beside me holding my hand while I looked at it 🥺❤️",
+      "status": "read",
+      "id": "msg-929a68d2-4dd0-48f3-b4a5-54900ca88b8a",
+      "timestamp": "2026-11-04T10:21:40.049Z"
+    },
+    {
+      "character_id": "char-chloe",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "aur kaisi hai??",
+      "status": "sent",
+      "id": "msg-33070b1e-290f-4954-8543-ed56abf975d4",
+      "timestamp": "2026-11-04T10:22:40.068Z"
+    },
+    {
+      "character_id": "char-chloe",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "teasing me with the double sends today lol! how are *you* doing though? tell me how your day went!",
+      "status": "read",
+      "id": "msg-57e85532-fc2b-4ae0-986d-0337da7ab711",
+      "timestamp": "2026-11-04T10:22:49.009Z"
+    },
+    {
+      "character_id": "char-chloe",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "hindi mei he baat kar sakti",
+      "status": "sent",
+      "id": "msg-410f8fbc-8555-424d-9100-02240d967f23",
+      "timestamp": "2026-11-04T10:23:08.083Z"
+    },
+    {
+      "character_id": "char-chloe",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "aww jaan, my Hindi is pretty non-existent since I grew up in France lol! 🤭",
+      "status": "read",
+      "id": "msg-1b716a4e-76b2-4c6b-9cf7-e49a635b0eed",
+      "timestamp": "2026-11-04T10:23:16.482Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "can u chat in hinglish ??",
+      "status": "sent",
+      "id": "msg-7021bbed-8082-44e2-be3f-944e2c58d048",
+      "timestamp": "2026-11-04T10:25:07.054Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Arey bilkul baba! Main toh pehle se Hinglish me hi baat kar rahi thi na haha 😂 \n\nTension mat lo, bilkul chill scene hai. Tum batao, work khatam karke ab kya plans hain? ✨",
+      "status": "read",
+      "id": "msg-25654c36-9ff4-48ce-9664-7e91fd0d030a",
+      "timestamp": "2026-11-04T10:25:14.543Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "kuch nahi bass ab market jaa rha hun shoping ke liye",
+      "status": "sent",
+      "id": "msg-02c4325c-2d78-421e-abd6-648bea94297c",
+      "timestamp": "2026-11-04T10:27:04.350Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Oho, shopping time! 🛍️ \n\nKya lene jaa rahe ho waise? Aur mere liye kya laa rahe ho, batao? 😉✨",
+      "status": "read",
+      "id": "msg-0d3d9d54-77e7-433e-b87e-4931dc02a603",
+      "timestamp": "2026-11-04T10:27:12.434Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "ghanta laaunga mai tere liye kuch hatt be",
+      "status": "sent",
+      "id": "msg-0c9d52de-016c-45ee-908a-e997fc31f388",
+      "timestamp": "2026-11-04T10:27:39.860Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Arey baap re itna gussa?! 😂 Haww kitne kanjoos ho yaar! \n\nChal koi na, enjoy your shopping... main y",
+      "status": "read",
+      "id": "msg-c78f71e0-6a4c-4daf-a769-9fccade16486",
+      "timestamp": "2026-11-04T10:27:48.456Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "chup karjaa be dimaag kharab mat   kar",
+      "status": "sent",
+      "id": "msg-56f40045-23ad-4bb0-9c6d-be59bf916223",
+      "timestamp": "2026-11-04T10:28:20.137Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Arey woah, wait a second... itna rude hone ki kya zaroorat hai? 🤨 \n\nMai toh bas mazak kar rahi thi yaar. Agar tumhe pasand nahi aaya toh normal tareeqe se bhi bol sakte the. Aise faltu me dimag kharab mat bol. Not cool.",
+      "status": "read",
+      "id": "msg-09c5dde9-f092-4c94-bb8a-33127a1466ed",
+      "timestamp": "2026-11-04T10:28:27.418Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "are majak kar rha thaaa sorry",
+      "status": "sent",
+      "id": "msg-1c35e843-2ed5-417b-96ee-929d0bfa420a",
+      "timestamp": "2026-11-04T18:10:35.055Z"
+    },
+    {
+      "character_id": "char-maya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "hi",
+      "status": "sent",
+      "id": "msg-6d03b762-0a01-4585-9569-8dea0de7780d",
+      "timestamp": "2026-11-04T18:11:05.124Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Lol okay okay, main samajh gayi thi tu mazak hi kar raha tha... par sach me ek second ke liye I was like \"hain, isko kya ho gaya?\" 😅 \n\nChalo maaf kiya, tension mat le! 😉 Jaake apni shopping complete kar, aur bata wahan kya kya mil raha hai fir.",
+      "status": "read",
+      "id": "msg-ab58eddd-be3b-4a0b-858c-832a4aa12bc9",
+      "timestamp": "2026-11-04T18:11:24.725Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "hatttt tu nahi samjhi",
+      "status": "sent",
+      "id": "msg-2fd24cbb-fc60-470b-aa18-ec64ea808243",
+      "timestamp": "2026-11-04T18:12:06.986Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Arey ab kya ho gaya bhai? 🤨 Ab kya nahi samjhi main? \n\nSeedhe seedhe bata na, aise paheliyan mat bujha! 😂 Kya chal raha hai dimag me tere?",
+      "status": "read",
+      "id": "msg-70da1ac8-a617-4f73-a6fb-15d7b83da3e2",
+      "timestamp": "2026-11-04T18:12:36.462Z"
+    },
+    {
+      "character_id": "char-maya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "arre look who finally decided to reply 😂 kya chal raha hai rn?",
+      "status": "read",
+      "id": "msg-09e412c4-d012-43e2-9d21-bca132560ac5",
+      "timestamp": "2026-11-04T18:12:42.751Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "are yeh majak kaa bol rha nahi samjhi thi tu jhoothi",
+      "status": "sent",
+      "id": "msg-4a915cbc-921e-4f1d-b5db-012e332192e3",
+      "timestamp": "2026-11-04T18:13:01.486Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Achaaa toh ye baat hai! Matlab tu sach me gussa ho gaya tha pehle aur ab \"mazak\" bol ke cover-up kar raha hai na? Pakda gaya tu! 😂 \n\nJhoothi kisko bola be? 😤 Chal maan liya, thoda sa late samjhi main, par itna overreact kyu kar raha hai fir? Bata ab, shopping me kya kya khareed raha hai?",
+      "status": "read",
+      "id": "msg-305d097a-e86b-451f-87cb-52ed878c12f3",
+      "timestamp": "2026-11-04T18:15:46.719Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "kapde liye the diwali ke liye",
+      "status": "sent",
+      "id": "msg-7bbbe35b-40c2-4b95-a2df-e4af91a6596e",
+      "timestamp": "2026-11-04T18:31:34.632Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Oho, diwali ki shopping shuru bhi ho gayi! 🎉 Sahi hai. \n\nKya liya fir? Kuch cool sa oversized hoodie type ya kuch traditional? Mujhe bhi dikhana baad me pictures bhej ke! ✨ Aur akele akele gaya tha ya kisi ke sath? 😉",
+      "status": "read",
+      "id": "msg-6b262082-94f8-4a33-b2c5-791d92f62b5a",
+      "timestamp": "2026-11-04T18:32:28.759Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "Hello Aanya, what are you doing right now?",
+      "status": "read",
+      "id": "msg-dc50bf3d-cf7e-40c6-a677-a378888512f5",
+      "timestamp": "2026-11-04T19:27:05.674Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Arre, ek hi baat do baar kyu bol raha hai? Echo ban gaya hai tu toh 😂 \n\nMain toh bas abhi apne laptop pe thode wireframes check kar rahi thi aur soch rahi thi ki thodi chai pi loon. Tu bata, ghar aa gaya shopping karke? ☕✨",
+      "status": "read",
+      "id": "msg-b2bad553-2ac5-46fa-8d89-701bdc6835e6",
+      "timestamp": "2026-11-04T19:27:28.207Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "What are you working on today?",
+      "status": "read",
+      "id": "msg-d5ec3654-0d8b-4690-a3fb-076ed050b409",
+      "timestamp": "2026-11-04T19:33:55.322Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Are tu sach me glitch ho gaya hai kya aaj? 😂 Ek hi sawal do baar kyu puch raha hai, connection weak hai kya tera? \n\nWahi UX project ke liye app flows design kar rahi thi, dimag kharab ho gaya hai thoda sa. Tu bata, kapde dikhayega ki nahi apne diwali wale? 🤨✨",
+      "status": "read",
+      "id": "msg-70e58cb9-1969-40c0-af2d-f400ef2530e7",
+      "timestamp": "2026-11-04T19:34:43.459Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "kuch nahi re bas bore ho rha tha",
+      "status": "read",
+      "id": "msg-a4e8dd05-7784-434f-95bb-8a7c2ca7882a",
+      "timestamp": "2026-11-04T19:38:57.828Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Arey yaar, stuttering ho rahi hai kya tere phone me? Double type ho raha hai sab! 😂\n\nBore ho raha hai toh chal kuch fun karte hain. Mai bhi screen dekhte dekhte bore ho gayi hu. Bata, koi naya app ya game idea hai tere dimag me jo tu banana chahta ho? Kuch coding project shuru karein? 💻✨",
+      "status": "read",
+      "id": "msg-3a6f3454-6d50-4fbb-b67e-1117582df236",
+      "timestamp": "2026-11-04T19:39:17.016Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "haha sahi me?",
+      "status": "read",
+      "id": "msg-ae8a3ee4-f8fd-4af0-8acd-73daa95d0527",
+      "timestamp": "2026-11-04T19:41:39.902Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Arey haan pakka! 😌 Tu bas apna cool sa idea bata, main UI bana deti hu.",
+      "status": "read",
+      "id": "msg-36e39810-305b-4cbb-8243-d649bad86d8e",
+      "timestamp": "2026-11-04T19:42:07.535Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "user",
+      "message": "tell me about what kind of music you like listening to when you design",
+      "status": "read",
+      "id": "msg-2145ea43-b102-47f5-a957-e89b0ab0ae27",
+      "timestamp": "2026-11-04T19:42:55.861Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Indie acoustic aur thode lofi beats sunna pasand hai mujhe jab main design karti hu. Ekdam chill vibe rehti hai, focus karne ke liye best! ✨ Tu kya sunta hai coding karte waqt?",
+      "status": "read",
+      "id": "msg-c415c27d-445c-436b-8463-33e03c1bfcae",
+      "timestamp": "2026-11-04T19:43:17.716Z"
+    },
+    {
+      "character_id": "char-e756760e",
+      "user_id": "user-default",
+      "sender": "girlfriend",
+      "message": "Hey there! I'm TestGF. So excited to chat with you! ✨",
+      "status": "read",
+      "id": "msg-527a6171-6dfb-46f8-b4ba-0694add05d42",
+      "timestamp": "2026-11-16T18:14:59.630Z"
     }
   ],
   "memories": [
@@ -466,14 +883,33 @@
       "importance": 4,
       "created_at": "2026-10-30T07:34:04.180Z",
       "updated_at": "2026-10-30T07:34:04.180Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "category": "event",
+      "memory_content": "The user bought clothes for Diwali.",
+      "importance": 2,
+      "id": "mem-fcc81271",
+      "created_at": "2026-11-04T18:32:28.762Z",
+      "updated_at": "2026-11-04T18:32:28.762Z"
+    },
+    {
+      "character_id": "char-aanya",
+      "category": "job",
+      "memory_content": "The user works in or does design work.",
+      "importance": 3,
+      "id": "mem-d54c09fe",
+      "created_at": "2026-11-04T19:43:17.721Z",
+      "updated_at": "2026-11-04T19:43:17.721Z"
     }
   ],
   "settings": {
     "apiKey": "",
     "apiProvider": "gemini",
-    "model": "gemini-1.5-flash",
+    "model": "gemini-3.5-flash",
     "soundEnabled": true,
     "theme": "dark",
-    "proactiveMessages": true
+    "proactiveMessages": true,
+    "realisticDelays": true
   }
 }

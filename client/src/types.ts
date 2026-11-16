@@ -63,7 +63,7 @@ export interface Message {
   message: string;
   media_url?: string;
   media_type?: 'image' | 'audio';
-  status: 'sent' | 'delivered' | 'read';
+  status: 'sent' | 'delivered' | 'read' | 'seen';
   liked?: boolean;
   timestamp: string;
 }
@@ -86,4 +86,37 @@ export interface AppSettings {
   soundEnabled: boolean;
   theme: 'dark' | 'light';
   proactiveMessages: boolean;
+  realisticDelays?: boolean;
+}
+
+export type DelayBucket = 'instant' | 'medium' | 'long' | 'night';
+
+export interface PendingReplyInfo {
+  characterId: string;
+  scheduledAt: number;
+  delaySeconds: number;
+  remainingSeconds: number;
+  seenTypingSeconds?: number;
+  bucket: DelayBucket;
+  isNight: boolean;
+  isTyping: boolean;
+  isSeen?: boolean;
+}
+
+export interface UserPreferences {
+  theme: 'dark' | 'light';
+  sound_enabled: boolean;
+  proactive_enabled: boolean;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  handle: string;
+  avatar?: string;
+  created_at: string;
+  isNewUser?: boolean;
+  bio?: string;
+  preferences?: UserPreferences;
 }

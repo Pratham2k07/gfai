@@ -24,7 +24,7 @@ const POPULAR_EMOJIS = [
 
 export const ChatInput: React.FC<ChatInputProps> = ({
   onSendMessage,
-  disabled,
+  disabled = false,
   theme,
   placeholder = "Message..."
 }) => {

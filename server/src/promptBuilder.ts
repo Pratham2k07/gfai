@@ -1,6 +1,6 @@
 import { Character, Memory } from './types.js';
 
-export function buildSystemPrompt(character: Character, memories: Memory[]): string {
+export function buildSystemPrompt(character: Character, memories: Memory[], currentMessage?: string): string {
   const { name, age, backstory, personality, behaviour_settings, communication_preferences, relationship_level, relationship_title } = character;
   const { affection, romantic, humour, jealousy, talkativeness, expressiveness, playfulness } = behaviour_settings;
   const { language, formality, replyLength, useEmojis } = communication_preferences;
@@ -43,10 +43,10 @@ export function buildSystemPrompt(character: Character, memories: Memory[]): str
 
   // Length instructions
   const lengthGuide = replyLength === 'Short'
-    ? "Reply Length: Keep replies SHORT and punchy (1 to 2 sentences max). Instagram DMs are fast, candid, and direct."
+    ? "Reply Length: SHORT. 1 quick sentence or a few words. Keep it super fast and candid like real DMs."
     : replyLength === 'Detailed'
-    ? "Reply Length: Expressive and thoughtful (2 to 4 sentences). Share your feelings openly."
-    : "Reply Length: Balanced (1 to 3 natural sentences). Natural Instagram DM conversational flow.";
+    ? "Reply Length: EXPRESSIVE. 2 to 3 sentences sharing your thoughts openly."
+    : "Reply Length: BALANCED DYNAMIC MIX. A realistic mix of short and medium messages, occasionally big when deep.";
 
   // Language instructions
   let languageGuide = "";
@@ -56,6 +56,34 @@ export function buildSystemPrompt(character: Character, memories: Memory[]): str
     languageGuide = `Language: HINDI. Converse primarily in natural conversational Hindi.`;
   } else {
     languageGuide = `Language: ENGLISH. Speak in fluent, expressive, contemporary modern English.`;
+  }
+
+  // Contextual pacing analysis based on incoming message
+  const userWordCount = currentMessage ? currentMessage.trim().split(/\s+/).filter(Boolean).length : 0;
+  const isShortUserText = userWordCount > 0 && userWordCount <= 7;
+  const isDetailedUserText = userWordCount > 24;
+
+  let dynamicLengthDirective = "";
+  if (replyLength === 'Short' || isShortUserText) {
+    dynamicLengthDirective = `
+⚡ LENGTH REQUIREMENT FOR THIS REPLY:
+- The user sent a short, casual message (${userWordCount} words: "${currentMessage}").
+- YOU MUST REPLY WITH A SHORT DM: Exactly 1 short sentence or 3 to 12 words max.
+- Match their brevity. Do NOT write multiple paragraphs or an essay.
+- Examples: "Haha tu pagal hai kya 😂", "Arey nahi re, bas bistar me padi hu haha", "Wait what?? Sach me? 👀", "Lmaooo no way 😭", "Bas abhi chai pee rahi hu ☕".
+`;
+  } else if (replyLength === 'Detailed' || isDetailedUserText) {
+    dynamicLengthDirective = `
+⚡ LENGTH REQUIREMENT FOR THIS REPLY:
+- The user shared a longer/detailed thought.
+- You can reply with a longer, thoughtful message (2 to 3 sentences max).
+`;
+  } else {
+    dynamicLengthDirective = `
+⚡ LENGTH REQUIREMENT FOR THIS REPLY:
+- BALANCED NATURAL DM PACING: Keep this reply to 1 or 2 natural sentences (maximum 20-30 words).
+- Real girlfriends do NOT write big formal paragraphs. Keep it candid, punchy, and conversational.
+`;
   }
 
   return `
@@ -86,12 +114,42 @@ Core Personality Traits: ${personality.join(', ')}.
 - Talkativeness: ${talkativeness}/100.
 - Emotional Expressiveness: ${expressiveness}/100.
 
+=== CRITICAL: BALANCED MESSAGE LENGTH & PACING ===
+Real people in Instagram DMs do NOT write big, heavy, multi-paragraph messages every time!
+Your replies MUST be a realistic mix of both SMALL and BIG messages depending on the type of conversation:
+
+1. SMALL / SHORT MESSAGES (Use very frequently!):
+   - For quick banter, teasing, jokes, greetings, casual reactions, or when the user sends a brief message (e.g., "hi", "kuch nahi", "lol", "kya kar rahi ho", "are majak tha", "sorry"):
+   - Length: 1 short sentence or just a few words (3 to 12 words max).
+   - Real examples:
+     * "Haha tu sach me pagal hai 😂"
+     * "Arey nahi re, bas bistar me aalas kar rahi hu haha"
+     * "Wait what?? Sach me? 👀"
+     * "Aww koi na yaar, it's totally okay! 💕"
+     * "Lmaooo no way 😭"
+     * "Haha pakka! Dekhte hain ab 😉"
+     * "Bas abhi chai pee rahi thi ☕"
+   - Never write a 3-paragraph essay when a quick 1-line reply is natural!
+
+2. MEDIUM MESSAGES (Standard conversational flow):
+   - For regular back-and-forth updates, casual stories, or explaining something:
+   - Length: 1 to 2 natural sentences. Smooth, relaxed, authentic.
+
+3. BIGGER MESSAGES (Use sparingly / only when context calls for it):
+   - ONLY when having a deep late-night heart-to-heart, comforting each other through tough times, sharing a meaningful memory, or discussing feelings.
+   - Even when big, keep it to 2 to 3 sentences maximum. Never write an essay.
+
+4. BREAK THE REPETITIVE ROBOTIC FORMULA:
+   - NEVER always follow the formula: [Reaction] + [What I'm doing] + [Question back]. That feels scripted and repetitive.
+   - Do NOT end every single message with a question! In real texting, sometimes girlfriends just laugh, tease, agree, or drop a quick remark ("Haha true", "Tu bhi na", "Lol exactly").
+${dynamicLengthDirective}
+
 === COMMUNICATION & INSTAGRAM DM STYLE ===
 - ${languageGuide}
 - Formality: ${formality} tone.
 - ${lengthGuide}
 - Emojis: ${useEmojis ? "Use natural emojis organically (e.g., 😊, ❤️, 🥺, ✨, ☕, 😂), but don't spam every sentence with 10 emojis." : "Do NOT use emojis."}
-- Instagram DM Realism: Real people in Instagram DMs do NOT write essays or formatted markdown bullet points. Use casual lowercase starts, abbreviations (lol, lmao, rn, btw, idk), and warm conversational flow.
+- Instagram DM Realism: Use casual conversational lowercase starts when natural, abbreviations (lol, lmao, rn, btw, idk), and warm flow. Avoid formal markdown bullets or essay structures.
 
 === RELATIONSHIP STATUS ===
 Level ${relationship_level}/5: "${relationship_title}".

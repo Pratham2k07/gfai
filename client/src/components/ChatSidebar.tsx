@@ -9,9 +9,12 @@ import {
   ChevronDown,
   Trash2, 
   Edit3,
-  Heart
+  Heart,
+  Plus,
+  Sparkles,
+  User as UserIcon
 } from 'lucide-react';
-import { Character, Message } from '../types';
+import { Character, Message, User, PendingReplyInfo } from '../types';
 
 interface ChatSidebarProps {
   characters: Character[];
@@ -24,6 +27,9 @@ interface ChatSidebarProps {
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
   messagesMap: Record<string, Message[]>;
+  currentUser?: User | null;
+  onOpenAccount?: () => void;
+  pendingReplies?: Record<string, PendingReplyInfo>;
 }
 
 export const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -36,7 +42,10 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onDeleteCharacter,
   theme,
   onToggleTheme,
-  messagesMap
+  messagesMap,
+  currentUser,
+  onOpenAccount,
+  pendingReplies = {}
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -64,49 +73,121 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   };
 
   return (
-    <aside className={`w-full md:w-80 lg:w-96 flex flex-col h-full border-r select-none ${
+    <aside className={`w-full md:w-80 lg:w-96 flex flex-col h-full border-r select-none overflow-hidden ${
       theme === 'dark' ? 'bg-black border-[#262626] text-white' : 'bg-white border-[#dbdbdb] text-black'
     }`}>
       {/* Top Header */}
-      <div className={`px-5 py-4 flex items-center justify-between border-b ${
+      <div className={`px-4 py-3 flex items-center justify-between border-b shrink-0 ${
         theme === 'dark' ? 'border-[#262626]' : 'border-[#dbdbdb]'
       }`}>
-        {/* Username with Down Arrow */}
-        <div className="flex items-center gap-1.5 cursor-pointer">
-          <span className="font-extrabold text-lg tracking-tight">velora.direct</span>
-          <ChevronDown className="w-4 h-4 text-gray-400" />
+        {/* User Profile Pill with Down Arrow */}
+        <div 
+          onClick={onOpenAccount}
+          className="flex items-center gap-2.5 cursor-pointer p-1 -ml-1 rounded-2xl hover:bg-white/[0.06] transition-colors group"
+          title="Account Profile & Settings"
+        >
+          <div className="w-8 h-8 rounded-full p-[1.5px] velora-story-ring flex items-center justify-center shrink-0">
+            <img
+              src={currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80'}
+              alt={currentUser?.name || 'User'}
+              className="w-full h-full rounded-full object-cover border border-black"
+            />
+          </div>
+
+          <div className="flex flex-col text-left">
+            <div className="flex items-center gap-1">
+              <span className="font-extrabold text-sm tracking-tight group-hover:text-[#FF6E5A] transition-colors">
+                {currentUser?.handle ? `@${currentUser.handle}` : 'velora.direct'}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-white transition-colors" />
+            </div>
+            <span className="text-[10px] text-gray-500 font-medium">
+              {characters.length} Active {characters.length === 1 ? 'GF' : 'GFs'}
+            </span>
+          </div>
         </div>
 
         {/* Action Icons */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
+          {/* Quick Create New GF Icon Button */}
           <button
-            onClick={onToggleTheme}
-            className="p-2 rounded-full text-gray-400 hover:text-white transition-colors"
-            title="Toggle theme"
+            onClick={onNewCharacter}
+            className="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors relative"
+            title="Create New Girlfriend"
           >
-            {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-gray-700" />}
+            <SquarePen className="w-4 h-4 text-[#FF3875]" />
           </button>
 
           <button
-            onClick={onNewCharacter}
-            className="p-2 rounded-full text-gray-400 hover:text-white transition-colors"
-            title="New Companion"
+            onClick={onToggleTheme}
+            className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+            title="Toggle theme"
           >
-            <SquarePen className="w-5 h-5" />
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-gray-700" />}
           </button>
 
           <button
             onClick={onOpenSettings}
-            className="p-2 rounded-full text-gray-400 hover:text-white transition-colors"
+            className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
             title="Settings & API Key"
           >
-            <Settings className="w-5 h-5" />
+            <Settings className="w-4 h-4" />
           </button>
         </div>
       </div>
 
+      {/* ── Story Tray: Companion Switcher & "+ New GF" ── */}
+      <div className={`px-3 py-2 border-b overflow-x-auto scrollbar-none flex items-center gap-3 shrink-0 ${
+        theme === 'dark' ? 'border-[#262626]/80 bg-[#09090b]' : 'border-[#dbdbdb]/80 bg-[#f9f9f9]'
+      }`}>
+        {/* "+ New Girlfriend" Story Circle */}
+        <button
+          onClick={onNewCharacter}
+          className="flex flex-col items-center gap-1 group shrink-0 w-14"
+          title="Create New Girlfriend"
+        >
+          <div className="w-12 h-12 rounded-full border-2 border-dashed border-[#FF3875]/60 hover:border-[#FF3875] bg-gradient-to-tr from-[#962FBF]/20 to-[#FF3875]/20 flex items-center justify-center transition-all group-hover:scale-105 active:scale-95 shadow-sm shrink-0">
+            <Plus className="w-5 h-5 text-[#FF6E5A]" />
+          </div>
+          <span className="text-[10px] font-bold text-[#FF6E5A] group-hover:text-white transition-colors truncate w-full text-center">
+            + New GF
+          </span>
+        </button>
+
+        {/* User's existing companions as story bubbles */}
+        {characters.map(char => {
+          const isActive = char.id === activeCharacterId;
+          return (
+            <button
+              key={char.id}
+              onClick={() => onSelectCharacter(char.id)}
+              className="flex flex-col items-center gap-1 group shrink-0 w-14 relative"
+              title={`Chat with ${char.name}`}
+            >
+              <div className={`w-12 h-12 rounded-full p-[2px] transition-all group-hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
+                isActive 
+                  ? 'velora-story-ring ring-2 ring-white/20' 
+                  : 'velora-story-ring opacity-80 group-hover:opacity-100'
+              }`}>
+                <img
+                  src={char.avatar}
+                  alt={char.name}
+                  className="w-full h-full rounded-full object-cover border border-black/40 block"
+                />
+              </div>
+              <span className={`text-[10px] font-medium truncate w-full text-center ${
+                isActive ? 'text-white font-bold' : 'text-zinc-400 group-hover:text-zinc-200'
+              }`}>
+                {char.name.split(' ')[0]}
+              </span>
+              <span className="absolute top-0 right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-black" />
+            </button>
+          );
+        })}
+      </div>
+
       {/* Search Bar */}
-      <div className="p-3">
+      <div className="p-3 shrink-0">
         <div className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs ${
           theme === 'dark' ? 'bg-[#18181b] text-gray-300' : 'bg-[#efefef] text-gray-800'
         }`}>
@@ -122,15 +203,28 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       </div>
 
       {/* Messages Thread List */}
-      <div className="flex-1 overflow-y-auto px-2">
+      <div className="flex-1 min-h-0 overflow-y-auto px-2 space-y-0.5">
         <div className="px-3 py-1 flex items-center justify-between text-xs font-bold text-gray-400">
-          <span>Messages</span>
-          <span className="text-pink-400 cursor-pointer" onClick={onNewCharacter}>+ New</span>
+          <span>Direct Messages</span>
+          <button
+            onClick={onNewCharacter}
+            className="text-[11px] font-bold text-[#FF6E5A] hover:text-white flex items-center gap-1 transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            <span>New GF</span>
+          </button>
         </div>
 
         {filteredCharacters.length === 0 ? (
-          <div className="py-12 px-4 text-center text-gray-500 space-y-2">
-            <p className="text-xs">No conversations found</p>
+          <div className="py-12 px-4 text-center text-gray-500 space-y-3">
+            <Heart className="w-8 h-8 text-[#FF3875]/40 mx-auto" />
+            <p className="text-xs">No conversations yet</p>
+            <button
+              onClick={onNewCharacter}
+              className="px-4 py-1.5 rounded-full text-xs font-bold velora-gradient text-white shadow-sm"
+            >
+              + Create Girlfriend
+            </button>
           </div>
         ) : (
           filteredCharacters.map((char) => {
@@ -177,14 +271,24 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
                   <div className="flex items-center justify-between text-xs text-gray-400">
                     <p className="truncate text-xs max-w-[170px]">
-                      {lastMsg ? (
+                      {pendingReplies[char.id]?.isTyping ? (
+                        <span className="text-pink-400 font-semibold animate-pulse">typing...</span>
+                      ) : lastMsg ? (
                         <span>{lastMsg.sender === 'user' ? `You: ${lastMsg.message}` : lastMsg.message}</span>
                       ) : (
                         <span>{char.introduction}</span>
                       )}
                     </p>
-                    <span className="text-[11px] text-gray-500 flex-shrink-0">
-                      • {formatMessageTime(lastMsg?.timestamp)}
+                    <span className="text-[11px] text-gray-400 font-medium flex-shrink-0">
+                      {pendingReplies[char.id]?.isTyping || pendingReplies[char.id]?.isSeen ? (
+                        <span className="text-pink-400 font-medium">Seen</span>
+                      ) : pendingReplies[char.id] ? (
+                        <span>Delivered</span>
+                      ) : lastMsg?.sender === 'user' ? (
+                        <span>{lastMsg.status === 'read' || lastMsg.status === 'seen' ? 'Seen' : 'Delivered'}</span>
+                      ) : lastMsg ? (
+                        <span>Seen</span>
+                      ) : null}
                     </span>
                   </div>
                 </div>
@@ -231,16 +335,16 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         )}
       </div>
 
-      {/* Bottom CTA */}
-      <div className={`p-3 border-t ${
+      {/* Bottom Sticky "+ Create New Girlfriend" Action */}
+      <div className={`p-3 border-t shrink-0 ${
         theme === 'dark' ? 'border-[#262626]' : 'border-[#dbdbdb]'
       }`}>
         <button
           onClick={onNewCharacter}
-          className="w-full py-2.5 rounded-2xl text-xs font-bold velora-gradient hover:opacity-95 text-white transition-all flex items-center justify-center gap-2 shadow-sm"
+          className="w-full py-2.5 rounded-2xl text-xs font-bold velora-gradient hover:opacity-95 text-white transition-all flex items-center justify-center gap-2 shadow-sm hover:scale-[1.02] active:scale-95"
         >
           <Heart className="w-4 h-4 fill-white" />
-          Create New Companion
+          <span>+ Create New Girlfriend</span>
         </button>
       </div>
     </aside>

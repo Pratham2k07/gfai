@@ -3,14 +3,20 @@ import {
   ArrowLeft, 
   Phone, 
   Video, 
-  Info 
+  Info,
+  Zap,
+  Moon,
+  Clock
 } from 'lucide-react';
-import { Character } from '../types';
+import { Character, PendingReplyInfo } from '../types';
 
 interface ChatHeaderProps {
   character: Character;
   isTyping: boolean;
   memoriesCount: number;
+  pendingReply?: PendingReplyInfo | null;
+  onSkipDelay?: () => void;
+  isSkipping?: boolean;
   onBack?: () => void;
   onOpenProfile: () => void;
   onOpenMemories?: () => void;
@@ -19,10 +25,21 @@ interface ChatHeaderProps {
   theme: 'dark' | 'light';
 }
 
+function formatRemainingTime(seconds: number): string {
+  if (seconds <= 0) return 'moments';
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.floor(seconds / 60);
+  const remainingSec = seconds % 60;
+  return remainingSec > 0 ? `${mins}m ${remainingSec}s` : `${mins}m`;
+}
+
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
   character,
   isTyping,
   memoriesCount,
+  pendingReply,
+  onSkipDelay,
+  isSkipping = false,
   onBack,
   onOpenProfile,
   onOpenMemories,
@@ -76,17 +93,43 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 <span className="w-1.5 h-1.5 rounded-full bg-pink-400 animate-ping inline-block" />
                 typing...
               </span>
+            ) : pendingReply?.isNight ? (
+              <span className="text-purple-300 flex items-center gap-1 text-[11px]">
+                <span>🌙</span>
+                <span>Active tonight</span>
+              </span>
             ) : (
-              <span className="text-gray-400">
-                Active now
+              <span className="text-gray-400 flex items-center gap-1 text-[11px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                <span>Active now</span>
               </span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Right: Authentic Instagram DM Header Icons */}
-      <div className="flex items-center gap-1 sm:gap-2">
+      {/* Center/Right: Pending Status Chip & Quick Skip for Testing */}
+      <div className="flex items-center gap-1 sm:gap-3">
+        {pendingReply && (
+          <div className="flex items-center gap-1.5 bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-full text-xs">
+            <span className="text-purple-300 font-medium text-[11px]">
+              {pendingReply.isSeen || pendingReply.isTyping ? 'Seen' : 'Delivered'}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSkipDelay?.();
+              }}
+              disabled={isSkipping}
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-500 hover:bg-pink-600 text-white transition-all active:scale-95 shadow-sm disabled:opacity-50 ml-1 flex items-center gap-0.5"
+              title="Skip delay and reply immediately"
+            >
+              <Zap className="w-2.5 h-2.5" />
+              <span>{isSkipping ? 'Replying...' : 'Reply now'}</span>
+            </button>
+          </div>
+        )}
+
         {/* Audio Phone Call */}
         <button
           onClick={onStartCall}

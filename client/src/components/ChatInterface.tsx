@@ -11,7 +11,7 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
-import { Character, Message, Memory, AppSettings } from '../types';
+import { Character, Message, Memory, AppSettings, User, PendingReplyInfo } from '../types';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatHeader } from './ChatHeader';
 import { ChatMessageBubble } from './ChatMessageBubble';
@@ -25,9 +25,11 @@ import {
   sendMessage, 
   clearChatHistory, 
   deleteCharacter, 
-  fetchMemories,
-  triggerProactiveMessage,
-  toggleMessageLike 
+  fetchMemories, 
+  triggerProactiveMessage, 
+  toggleMessageLike,
+  skipReplyDelay,
+  fetchAllPendingReplies
 } from '../services/api';
 import { soundFX } from '../utils/audio';
 
@@ -42,6 +44,8 @@ interface ChatInterfaceProps {
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
   onNavigateDiscover?: () => void;
+  currentUser?: User | null;
+  onOpenAccount?: () => void;
 }
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -54,12 +58,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   settings,
   theme,
   onToggleTheme,
-  onNavigateDiscover
+  onNavigateDiscover,
+  currentUser,
+  onOpenAccount
 }) => {
   const activeCharacter = characters.find(c => c.id === activeCharacterId) || characters[0];
   const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>({});
   const [memoriesMap, setMemoriesMap] = useState<Record<string, Memory[]>>({});
+  const [pendingReplies, setPendingReplies] = useState<Record<string, PendingReplyInfo>>({});
   const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [isSkipping, setIsSkipping] = useState<boolean>(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
 
   // Modals state
@@ -76,6 +84,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const currentMessages = activeCharacter ? messagesMap[activeCharacter.id] || [] : [];
   const currentMemories = activeCharacter ? memoriesMap[activeCharacter.id] || [] : [];
+  const activePendingReply = activeCharacter ? pendingReplies[activeCharacter.id] : null;
+
+  // Initial load of pending replies across all companions
+  useEffect(() => {
+    fetchAllPendingReplies()
+      .then(allPending => {
+        if (allPending && Object.keys(allPending).length > 0) {
+          setPendingReplies(allPending);
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (!activeCharacter) return;
@@ -97,6 +117,88 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentMessages.length, isTyping]);
 
+  // Second-by-second countdown timer for pending replies and typing indicator sync
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = Date.now();
+
+      setPendingReplies(prev => {
+        if (Object.keys(prev).length === 0) return prev;
+        let changed = false;
+        const updated = { ...prev };
+
+        for (const [charId, info] of Object.entries(prev)) {
+          const remaining = Math.max(0, Math.ceil((info.scheduledAt - now) / 1000));
+          const typingWindow = info.seenTypingSeconds || 6;
+          const isCharTyping = remaining <= typingWindow && remaining > 0;
+          const isCharSeen = isCharTyping;
+
+          if (
+            info.remainingSeconds !== remaining ||
+            info.isTyping !== isCharTyping ||
+            info.isSeen !== isCharSeen
+          ) {
+            changed = true;
+            updated[charId] = {
+              ...info,
+              remainingSeconds: remaining,
+              isTyping: isCharTyping,
+              isSeen: isCharSeen
+            };
+          }
+
+          if (charId === activeCharacter?.id) {
+            setIsTyping(isCharTyping);
+          }
+        }
+
+        return changed ? updated : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activeCharacter?.id]);
+
+  // Periodic poll to fetch new messages when a reply is pending or expected
+  useEffect(() => {
+    if (!activeCharacter) return;
+    const hasActivePending = Boolean(pendingReplies[activeCharacter.id]);
+    const pollInterval = hasActivePending ? 2500 : 7000;
+
+    const interval = setInterval(async () => {
+      try {
+        const msgs = await fetchMessages(activeCharacter.id);
+        const prevCount = (messagesMap[activeCharacter.id] || []).length;
+
+        if (msgs.length > prevCount) {
+          setMessagesMap(prev => ({ ...prev, [activeCharacter.id]: msgs }));
+
+          const lastMsg = msgs[msgs.length - 1];
+          if (lastMsg && lastMsg.sender === 'girlfriend') {
+            // New message arrived from companion! Clear pending reply for this character
+            setPendingReplies(prev => {
+              if (!prev[activeCharacter.id]) return prev;
+              const next = { ...prev };
+              delete next[activeCharacter.id];
+              return next;
+            });
+            setIsTyping(false);
+            soundFX.playReceived();
+
+            // Refresh memories
+            fetchMemories(activeCharacter.id)
+              .then(mems => setMemoriesMap(m => ({ ...m, [activeCharacter.id]: mems })))
+              .catch(() => {});
+          }
+        }
+      } catch (err) {
+        // Silently ignore poll errors
+      }
+    }, pollInterval);
+
+    return () => clearInterval(interval);
+  }, [activeCharacter?.id, pendingReplies, messagesMap]);
+
   const handleSendMessage = async (text: string, mediaUrl?: string, mediaType?: 'image' | 'audio') => {
     if (!activeCharacter) return;
     setApiKeyError(null);
@@ -109,7 +211,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       message: text || (mediaType === 'image' ? '📷 [Photo]' : '🎵 [Voice Note]'),
       media_url: mediaUrl,
       media_type: mediaType,
-      status: 'sent',
+      status: 'delivered',
       timestamp: new Date().toISOString()
     };
 
@@ -118,48 +220,69 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       [activeCharacter.id]: [...(prev[activeCharacter.id] || []), tempUserMsg]
     }));
 
-    setIsTyping(true);
-
     try {
       const response = await sendMessage(activeCharacter.id, {
         message: text,
         media_url: mediaUrl,
-        media_type: mediaType
+        media_type: mediaType,
+        clientHour: new Date().getHours()
       });
 
-      setMessagesMap(prev => {
-        const filtered = (prev[activeCharacter.id] || []).filter(m => m.id !== tempUserMsg.id);
-        return {
+      // If server scheduled a realistic delay
+      if (response.pendingReply) {
+        setPendingReplies(prev => ({
           ...prev,
-          [activeCharacter.id]: [...filtered, response.userMessage, response.aiMessage]
-        };
-      });
-
-      soundFX.playReceived();
-
-      if (response.newMemory) {
-        setMemoriesMap(prev => ({
-          ...prev,
-          [activeCharacter.id]: [response.newMemory!, ...(prev[activeCharacter.id] || [])]
+          [activeCharacter.id]: response.pendingReply!
         }));
-      }
 
-      if (response.relationshipUpdate) {
-        if (response.relationshipUpdate.leveledUp) {
-          soundFX.playLevelUp();
+        setMessagesMap(prev => {
+          const filtered = (prev[activeCharacter.id] || []).filter(m => m.id !== tempUserMsg.id);
+          return {
+            ...prev,
+            [activeCharacter.id]: [...filtered, response.userMessage]
+          };
+        });
+
+        // Show typing only if scheduled within final seen typing window (<= 10s)
+        const typingWindow = response.pendingReply.seenTypingSeconds || 6;
+        setIsTyping(response.pendingReply.remainingSeconds <= typingWindow && response.pendingReply.remainingSeconds > 0);
+      } else if (response.aiMessage) {
+        // Instant response (delays disabled or 0 delay)
+        setMessagesMap(prev => {
+          const filtered = (prev[activeCharacter.id] || []).filter(m => m.id !== tempUserMsg.id);
+          return {
+            ...prev,
+            [activeCharacter.id]: [...filtered, response.userMessage, response.aiMessage!]
+          };
+        });
+
+        soundFX.playReceived();
+        setIsTyping(false);
+
+        if (response.newMemory) {
+          setMemoriesMap(prev => ({
+            ...prev,
+            [activeCharacter.id]: [response.newMemory!, ...(prev[activeCharacter.id] || [])]
+          }));
         }
-        onCharactersUpdated(
-          characters.map(c =>
-            c.id === activeCharacter.id
-              ? {
-                  ...c,
-                  relationship_level: response.relationshipUpdate!.level,
-                  relationship_title: response.relationshipUpdate!.title,
-                  xp: response.relationshipUpdate!.xp
-                }
-              : c
-          )
-        );
+
+        if (response.relationshipUpdate) {
+          if (response.relationshipUpdate.leveledUp) {
+            soundFX.playLevelUp();
+          }
+          onCharactersUpdated(
+            characters.map(c =>
+              c.id === activeCharacter.id
+                ? {
+                    ...c,
+                    relationship_level: response.relationshipUpdate!.level,
+                    relationship_title: response.relationshipUpdate!.title,
+                    xp: response.relationshipUpdate!.xp
+                  }
+                : c
+            )
+          );
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -168,8 +291,58 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       } else {
         alert(err.message || 'Error communicating with AI service');
       }
-    } finally {
       setIsTyping(false);
+    }
+  };
+
+  const handleSkipDelay = async () => {
+    if (!activeCharacter) return;
+    setIsSkipping(true);
+    try {
+      const res = await skipReplyDelay(activeCharacter.id);
+      if (res.aiMessage) {
+        setMessagesMap(prev => ({
+          ...prev,
+          [activeCharacter.id]: [...(prev[activeCharacter.id] || []), res.aiMessage]
+        }));
+        soundFX.playReceived();
+      }
+
+      if (res.newMemory) {
+        setMemoriesMap(prev => ({
+          ...prev,
+          [activeCharacter.id]: [res.newMemory!, ...(prev[activeCharacter.id] || [])]
+        }));
+      }
+
+      if (res.relationshipUpdate) {
+        if (res.relationshipUpdate.leveledUp) {
+          soundFX.playLevelUp();
+        }
+        onCharactersUpdated(
+          characters.map(c =>
+            c.id === activeCharacter.id
+              ? {
+                  ...c,
+                  relationship_level: res.relationshipUpdate!.level,
+                  relationship_title: res.relationshipUpdate!.title,
+                  xp: res.relationshipUpdate!.xp
+                }
+              : c
+          )
+        );
+      }
+
+      setPendingReplies(prev => {
+        const next = { ...prev };
+        delete next[activeCharacter.id];
+        return next;
+      });
+      setIsTyping(false);
+    } catch (err: any) {
+      console.error('Failed to skip delay:', err);
+    } finally {
+      setIsSkipping(false);
     }
   };
 
@@ -304,14 +477,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </button>
 
           <div
-            onClick={onOpenSettings}
-            className="w-8 h-8 rounded-full border border-gray-700 overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#0095f6] transition-all"
-            title="Settings & Key"
+            onClick={onOpenAccount || onOpenSettings}
+            className="w-8 h-8 rounded-full p-[1.5px] velora-story-ring overflow-hidden cursor-pointer hover:scale-105 transition-all shadow-sm"
+            title="My Account"
           >
             <img
-              src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80"
-              alt="User"
-              className="w-full h-full object-cover"
+              src={currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80'}
+              alt={currentUser?.name || 'User'}
+              className="w-full h-full rounded-full object-cover border border-black"
             />
           </div>
         </div>
@@ -333,6 +506,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           theme={theme}
           onToggleTheme={onToggleTheme}
           messagesMap={messagesMap}
+          currentUser={currentUser}
+          onOpenAccount={onOpenAccount}
+          pendingReplies={pendingReplies}
         />
       </div>
 
@@ -345,6 +521,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               character={activeCharacter}
               isTyping={isTyping}
               memoriesCount={currentMemories.length}
+              pendingReply={activePendingReply}
+              onSkipDelay={handleSkipDelay}
+              isSkipping={isSkipping}
               onBack={() => setMobileShowChat(false)}
               onOpenProfile={() => setShowProfile(true)}
               onOpenMemories={() => setShowMemories(true)}
@@ -406,17 +585,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
 
               {/* Messages List */}
-              {currentMessages.map((msg, idx) => (
-                <ChatMessageBubble
-                  key={msg.id}
-                  message={msg}
-                  girlfriendAvatar={activeCharacter.avatar}
-                  theme={theme}
-                  onImageClick={(url) => setEnlargedImage(url)}
-                  onToggleLike={handleToggleLike}
-                  isLatestUserMessage={idx === currentMessages.length - 1 && msg.sender === 'user'}
-                />
-              ))}
+              {currentMessages.map((msg, idx) => {
+                const isLatest = idx === currentMessages.length - 1 && msg.sender === 'user';
+                const isSeen = isLatest && Boolean(activePendingReply?.isSeen || msg.status === 'read' || msg.status === 'seen');
+                return (
+                  <ChatMessageBubble
+                    key={msg.id}
+                    message={msg}
+                    girlfriendAvatar={activeCharacter.avatar}
+                    theme={theme}
+                    onImageClick={(url) => setEnlargedImage(url)}
+                    onToggleLike={handleToggleLike}
+                    isLatestUserMessage={isLatest}
+                    statusText={isSeen ? 'Seen' : 'Delivered'}
+                  />
+                );
+              })}
 
               {/* Instagram Typing Dots Bubble */}
               {isTyping && (
@@ -441,10 +625,29 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Pending Realistic Delay Banner */}
+            {activePendingReply && !isTyping && (
+              <div className="px-4 py-1.5 flex items-center justify-between text-xs bg-purple-950/20 border-t border-purple-500/20 text-purple-200 select-none animate-fade-in">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-pink-400 animate-pulse" />
+                  <span className="text-[11px] font-medium text-gray-300">
+                    {activePendingReply.isSeen ? 'Seen' : 'Delivered'}
+                  </span>
+                </div>
+                <button
+                  onClick={handleSkipDelay}
+                  disabled={isSkipping}
+                  className="text-pink-400 hover:text-pink-300 font-semibold text-[11px] flex items-center gap-1 underline underline-offset-2 cursor-pointer"
+                >
+                  ⚡ Instant reply
+                </button>
+              </div>
+            )}
+
             {/* Instagram DM Input Capsule */}
             <ChatInput
               onSendMessage={handleSendMessage}
-              disabled={isTyping}
+              disabled={false}
               theme={theme}
               placeholder={`Message ${activeCharacter.name}...`}
             />

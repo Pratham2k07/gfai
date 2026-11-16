@@ -1,18 +1,24 @@
 import express, { Request, Response } from 'express';
+import http from 'http';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { db } from './db.js';
 import { aiService } from './aiService.js';
 import { Character, Message } from './types.js';
-
-dotenv.config();
+import { replyScheduler, calculateReplyDelay } from './replyScheduler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Load .env from server dir, root dir, or cwd
+dotenv.config();
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
@@ -43,7 +49,7 @@ app.get('/api/settings', async (req: Request, res: Response) => {
 
 app.post('/api/settings', async (req: Request, res: Response) => {
   try {
-    const { apiKey, apiProvider, model, soundEnabled, theme, proactiveMessages } = req.body;
+    const { apiKey, apiProvider, model, soundEnabled, theme, proactiveMessages, realisticDelays } = req.body;
     const current = await db.getSettings();
 
     const updates: any = {};
@@ -55,6 +61,7 @@ app.post('/api/settings', async (req: Request, res: Response) => {
     if (soundEnabled !== undefined) updates.soundEnabled = soundEnabled;
     if (theme !== undefined) updates.theme = theme;
     if (proactiveMessages !== undefined) updates.proactiveMessages = proactiveMessages;
+    if (realisticDelays !== undefined) updates.realisticDelays = realisticDelays;
 
     const updated = await db.updateSettings(updates);
     res.json({
@@ -222,10 +229,61 @@ app.get('/api/characters/:id/messages', async (req: Request, res: Response) => {
   }
 });
 
+// Helper to generate AI companion reply and update memories & XP
+async function generateAndSaveCompanionReply(characterId: string, mediaUrl?: string) {
+  const character = await db.getCharacterById(characterId);
+  if (!character) throw new Error('Character not found');
+
+  const [memories, history, settings] = await Promise.all([
+    db.getMemories(characterId),
+    db.getMessages(characterId),
+    db.getSettings()
+  ]);
+
+  const userMsgs = history.filter(m => m.sender === 'user');
+  const latestUser = userMsgs[userMsgs.length - 1];
+  const promptText = latestUser?.message || "Hey there!";
+
+  const aiResponse = await aiService.generateReply(
+    character,
+    memories,
+    history,
+    promptText,
+    settings,
+    mediaUrl
+  );
+
+  const girlfriendMsg = await db.addMessage({
+    character_id: characterId,
+    user_id: 'user-default',
+    sender: 'girlfriend',
+    message: aiResponse.reply,
+    status: 'read'
+  });
+
+  let newMemoryRecord;
+  if (aiResponse.extractedMemory) {
+    newMemoryRecord = await db.addMemory({
+      character_id: characterId,
+      category: aiResponse.extractedMemory.category,
+      memory_content: aiResponse.extractedMemory.memory_content,
+      importance: aiResponse.extractedMemory.importance
+    });
+  }
+
+  const relationshipUpdate = await db.recordConversationXP(characterId, 30);
+
+  return {
+    aiMessage: girlfriendMsg,
+    newMemory: newMemoryRecord,
+    relationshipUpdate
+  };
+}
+
 app.post('/api/characters/:id/messages', async (req: Request, res: Response) => {
   try {
     const characterId = req.params.id as string;
-    const { message, media_url, media_type } = req.body;
+    const { message, media_url, media_type, clientHour, forceInstant } = req.body;
 
     if (!message && !media_url) {
       return res.status(400).json({ error: 'Message text or media is required' });
@@ -236,7 +294,7 @@ app.post('/api/characters/:id/messages', async (req: Request, res: Response) => 
       return res.status(404).json({ error: 'Character not found' });
     }
 
-    // 1. Record user message
+    // 1. Record user message immediately (delivered status)
     const userMsg = await db.addMessage({
       character_id: characterId,
       user_id: 'user-default',
@@ -244,24 +302,62 @@ app.post('/api/characters/:id/messages', async (req: Request, res: Response) => 
       message: message || (media_type === 'image' ? '📷 [Photo]' : '🎵 [Voice Note]'),
       media_url,
       media_type,
-      status: 'sent'
+      status: 'delivered'
     });
 
-    // 2. Fetch context (memories & history)
-    const [memories, history, settings] = await Promise.all([
+    const settings = await db.getSettings();
+
+    // Check if realistic delays are enabled (defaults to true)
+    const useRealisticDelays = settings.realisticDelays !== false && !forceInstant;
+
+    if (forceInstant) {
+      // Immediate reply generation requested explicitly
+      try {
+        const replyResult = await generateAndSaveCompanionReply(characterId, media_url);
+        await db.updateMessageStatus(userMsg.id, 'read');
+        return res.json({
+          userMessage: userMsg,
+          ...replyResult
+        });
+      } catch (aiErr: any) {
+        if (aiErr.code === 'NO_API_KEY') {
+          return res.status(400).json({
+            error: 'NO_API_KEY',
+            message: aiErr.message,
+            userMessage: userMsg
+          });
+        }
+        if (aiErr.code === 'INVALID_API_KEY') {
+          return res.status(401).json({
+            error: 'INVALID_API_KEY',
+            message: aiErr.message,
+            userMessage: userMsg
+          });
+        }
+        return res.status(500).json({
+          error: 'AI_ERROR',
+          message: aiErr.message || 'Failed to generate AI companion response.',
+          userMessage: userMsg
+        });
+      }
+    }
+
+    // 2. Pre-generate AI companion reply:
+    // - Immediate validation of API keys and prompt safety
+    // - Accurate word count for typing duration (seenTypingSeconds <= 10s)
+    // - Zero latency delivery once countdown expires
+    const [memories, history] = await Promise.all([
       db.getMemories(characterId),
-      db.getMessages(characterId),
-      db.getSettings()
+      db.getMessages(characterId)
     ]);
 
-    // 3. Generate AI response
     let aiResponse;
     try {
       aiResponse = await aiService.generateReply(
         character,
         memories,
         history,
-        message || "Here is a photo I wanted to share with you!",
+        userMsg.message,
         settings,
         media_url
       );
@@ -287,38 +383,95 @@ app.post('/api/characters/:id/messages', async (req: Request, res: Response) => 
       });
     }
 
-    // 4. Save girlfriend message
-    const girlfriendMsg = await db.addMessage({
-      character_id: characterId,
-      user_id: 'user-default',
-      sender: 'girlfriend',
-      message: aiResponse.reply,
-      status: 'read'
+    const wordCount = aiResponse.reply.trim().split(/\s+/).filter(Boolean).length;
+
+    // 3. Realistic delay timing calculation:
+    // - Night (10 PM - 6 AM): 15-20s total, typing in final 4-8s
+    // - Day (6 AM - 10 PM): 25-120s total (max 2 min), typing in final 4-10s
+    // - Once 'seen', reply arrives strictly within 10 seconds!
+    const { delayMs, seenTypingSeconds, bucket, isNight, description } = calculateReplyDelay({
+      clientHour: typeof clientHour === 'number' ? clientHour : undefined,
+      realisticDelaysEnabled: useRealisticDelays,
+      wordCount
     });
 
-    // 5. If new memory extracted, save it
-    let newMemoryRecord;
-    if (aiResponse.extractedMemory) {
-      newMemoryRecord = await db.addMemory({
-        character_id: characterId,
-        category: aiResponse.extractedMemory.category,
-        memory_content: aiResponse.extractedMemory.memory_content,
-        importance: aiResponse.extractedMemory.importance
-      });
-    }
+    console.log(`[Realistic Delay] ${character.name}: reply scheduled in ${Math.round(delayMs / 1000)}s (${description})`);
 
-    // 6. Record XP and relationship progression
-    const relationshipUpdate = await db.recordConversationXP(characterId, 30);
+    // 4. Schedule background reply delivery
+    const pendingReply = replyScheduler.scheduleReply(
+      characterId,
+      delayMs,
+      seenTypingSeconds,
+      bucket,
+      isNight,
+      async () => {
+        try {
+          const girlfriendMsg = await db.addMessage({
+            character_id: characterId,
+            user_id: 'user-default',
+            sender: 'girlfriend',
+            message: aiResponse.reply,
+            status: 'read'
+          });
 
-    res.json({
+          // Mark user's message as seen/read
+          await db.updateMessageStatus(userMsg.id, 'read');
+
+          let newMemoryRecord;
+          if (aiResponse.extractedMemory) {
+            newMemoryRecord = await db.addMemory({
+              character_id: characterId,
+              category: aiResponse.extractedMemory.category,
+              memory_content: aiResponse.extractedMemory.memory_content,
+              importance: aiResponse.extractedMemory.importance
+            });
+          }
+
+          const relationshipUpdate = await db.recordConversationXP(characterId, 30);
+          console.log(`[Realistic Delay] ${character.name}: scheduled reply delivered (${wordCount} words, typed ${seenTypingSeconds}s).`);
+          return {
+            aiMessage: girlfriendMsg,
+            newMemory: newMemoryRecord,
+            relationshipUpdate
+          };
+        } catch (err: any) {
+          console.error(`[Realistic Delay] Error saving scheduled reply for ${character.name}:`, err.message || err);
+        }
+      }
+    );
+
+    return res.json({
       userMessage: userMsg,
-      aiMessage: girlfriendMsg,
-      newMemory: newMemoryRecord,
-      relationshipUpdate
+      pendingReply
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Check status of a pending reply for a specific character
+app.get('/api/characters/:id/reply-status', (req: Request, res: Response) => {
+  const characterId = req.params.id as string;
+  const pendingReply = replyScheduler.getInfo(characterId);
+  res.json({ pendingReply });
+});
+
+// Force skip/trigger pending reply immediately (useful for testing or impatience)
+app.post('/api/characters/:id/skip-delay', async (req: Request, res: Response) => {
+  try {
+    const characterId = req.params.id as string;
+    const result = await replyScheduler.triggerImmediately(characterId, () =>
+      generateAndSaveCompanionReply(characterId)
+    );
+    res.json(result || { success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all active pending replies across all companions
+app.get('/api/pending-replies', (req: Request, res: Response) => {
+  res.json(replyScheduler.getAllPending());
 });
 
 app.delete('/api/characters/:id/messages', async (req: Request, res: Response) => {
@@ -428,20 +581,16 @@ app.post('/api/characters/:id/proactive', async (req: Request, res: Response) =>
   }
 });
 
-// Serve client build if available
+// Serve built frontend and API on the same port
 const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
 app.use(express.static(clientDist));
 app.use((req: Request, res: Response) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'Endpoint not found' });
   }
-  res.sendFile(path.join(clientDist, 'index.html'), (err) => {
-    if (err) {
-      res.status(200).send("AI Companion Backend is running. Frontend dev server is at http://localhost:3000");
-    }
-  });
+  res.sendFile(path.join(clientDist, 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 AI Companion Server running at http://localhost:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`🚀 VELORA AI Companion running at http://localhost:${PORT}`);
 });

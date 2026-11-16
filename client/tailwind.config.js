@@ -30,7 +30,8 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', '"Outfit"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        display: ['"Outfit"', '"Plus Jakarta Sans"', '-apple-system', 'sans-serif'],
       },
       animation: {
         'pop': 'pop 0.15s ease-out',

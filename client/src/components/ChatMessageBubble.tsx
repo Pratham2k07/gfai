@@ -10,6 +10,7 @@ interface ChatMessageBubbleProps {
   onImageClick?: (url: string) => void;
   onToggleLike?: (msgId: string) => void;
   isLatestUserMessage?: boolean;
+  statusText?: 'Delivered' | 'Seen';
 }
 
 export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
@@ -18,7 +19,8 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
   theme,
   onImageClick,
   onToggleLike,
-  isLatestUserMessage = false
+  isLatestUserMessage = false,
+  statusText
 }) => {
   const isUser = message.sender === 'user';
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -148,17 +150,14 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
           )}
         </div>
 
-        {/* Timestamp & Instagram "Seen" indicator for user messages */}
-        <div className="flex items-center gap-1.5 mt-1 px-1">
-          <span className="text-[10px] text-gray-500 font-medium">
-            {formatTimestamp(message.timestamp)}
-          </span>
-          {isUser && isLatestUserMessage && (
+        {/* Instagram "Delivered" or "Seen" indicator for user messages (no time) */}
+        {isUser && isLatestUserMessage && (
+          <div className="flex items-center gap-1 mt-1 px-1">
             <span className="text-[10px] text-gray-400 font-medium">
-              • Seen
+              {statusText || (message.status === 'read' || message.status === 'seen' ? 'Seen' : 'Delivered')}
             </span>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

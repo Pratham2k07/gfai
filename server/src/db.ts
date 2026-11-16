@@ -18,12 +18,13 @@ interface DatabaseSchema {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-  apiKey: process.env.GEMINI_API_KEY || '',
+  apiKey: '',
   apiProvider: 'gemini',
-  model: 'gemini-1.5-flash',
+  model: 'gemini-3.5-flash',
   soundEnabled: true,
   theme: 'dark',
   proactiveMessages: true,
+  realisticDelays: true,
 };
 
 const SEED_CHARACTERS: Character[] = [
@@ -296,9 +297,8 @@ class Database {
         }
       }
 
-      // Ensure settings has process.env.GEMINI_API_KEY if not already set
-      if (this.cache && !this.cache.settings.apiKey && process.env.GEMINI_API_KEY) {
-        this.cache.settings.apiKey = process.env.GEMINI_API_KEY;
+      if (this.cache && this.cache.settings.realisticDelays === undefined) {
+        this.cache.settings.realisticDelays = true;
         needsSave = true;
       }
       if (needsSave) {
@@ -327,7 +327,12 @@ class Database {
         settings: DEFAULT_SETTINGS
       };
 
-      await fs.writeFile(DB_FILE, JSON.stringify(initialDb, null, 2), 'utf-8');
+      try {
+        await fs.mkdir(DATA_DIR, { recursive: true });
+        await fs.writeFile(DB_FILE, JSON.stringify(initialDb, null, 2), 'utf-8');
+      } catch (writeErr: any) {
+        console.warn('[Database] Could not write seed to disk, using in-memory cache:', writeErr?.message);
+      }
       this.cache = initialDb;
       return this.cache;
     }
@@ -335,9 +340,19 @@ class Database {
 
   private async save(): Promise<void> {
     if (!this.cache) return;
-    const tempFile = `${DB_FILE}.tmp.${Date.now()}`;
-    await fs.writeFile(tempFile, JSON.stringify(this.cache, null, 2), 'utf-8');
-    await fs.rename(tempFile, DB_FILE);
+    try {
+      await fs.mkdir(DATA_DIR, { recursive: true });
+      const tempFile = `${DB_FILE}.tmp.${Date.now()}`;
+      await fs.writeFile(tempFile, JSON.stringify(this.cache, null, 2), 'utf-8');
+      try {
+        await fs.rename(tempFile, DB_FILE);
+      } catch {
+        await fs.writeFile(DB_FILE, JSON.stringify(this.cache, null, 2), 'utf-8');
+        await fs.unlink(tempFile).catch(() => {});
+      }
+    } catch (err: any) {
+      console.warn('[Database] Filesystem write failed, keeping in-memory cache:', err?.message);
+    }
   }
 
   // --- Characters ---
@@ -423,6 +438,15 @@ class Database {
     return msg;
   }
 
+  async updateMessageStatus(messageId: string, status: 'sent' | 'delivered' | 'read' | 'seen'): Promise<void> {
+    const db = await this.ensureInitialized();
+    const msg = db.messages.find(m => m.id === messageId);
+    if (msg) {
+      msg.status = status;
+      await this.save();
+    }
+  }
+
   // --- Memories ---
   async getMemories(characterId: string): Promise<Memory[]> {
     const db = await this.ensureInitialized();
@@ -467,7 +491,10 @@ class Database {
   // --- Settings ---
   async getSettings(): Promise<AppSettings> {
     const db = await this.ensureInitialized();
-    return db.settings;
+    return {
+      ...db.settings,
+      apiKey: db.settings.apiKey || process.env.GEMINI_API_KEY || ''
+    };
   }
 
   async updateSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
