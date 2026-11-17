@@ -24,6 +24,29 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json({ limit: '15mb' }));
 
+// Vercel serverless environment URL normalization
+app.use((req: Request, res: Response, next) => {
+  const vercelOriginal =
+    (req.headers['x-matched-path'] as string) ||
+    (req.headers['x-forwarded-uri'] as string) ||
+    (req.headers['x-now-route-matches'] as string);
+  if (vercelOriginal && vercelOriginal.startsWith('/api') && (req.url === '/api' || req.url === '/api/' || req.url === '/')) {
+    const queryIndex = req.url.indexOf('?');
+    const queryString = queryIndex !== -1 ? req.url.slice(queryIndex) : '';
+    req.url = vercelOriginal + queryString;
+  }
+  next();
+});
+
+// --- Base API Status ---
+app.get('/api', (req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    message: 'VELORA AI Companion API running',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // --- Health ---
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -583,19 +606,25 @@ app.post('/api/characters/:id/proactive', async (req: Request, res: Response) =>
   }
 });
 
-// Serve built frontend and API on the same port
+// Serve built frontend and API on the same port (for local / standalone production)
 const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
-app.use(express.static(clientDist));
-app.use((req: Request, res: Response) => {
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'Endpoint not found' });
-  }
-  res.sendFile(path.join(clientDist, 'index.html'));
-});
 
 if (!process.env.VERCEL) {
+  app.use(express.static(clientDist));
+  app.use((req: Request, res: Response) => {
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'Endpoint not found' });
+    }
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+
   server.listen(PORT, () => {
     console.log(`🚀 VELORA AI Companion running at http://localhost:${PORT}`);
+  });
+} else {
+  // On Vercel, static frontend is served by Vercel CDN; API handles unmapped routes
+  app.use((req: Request, res: Response) => {
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl || req.url}` });
   });
 }
 
