@@ -591,6 +591,10 @@ app.use((req: Request, res: Response) => {
   res.sendFile(path.join(clientDist, 'index.html'));
 });
 
-server.listen(PORT, () => {
-  console.log(`🚀 VELORA AI Companion running at http://localhost:${PORT}`);
-});
+if (!process.env.VERCEL) {
+  server.listen(PORT, () => {
+    console.log(`🚀 VELORA AI Companion running at http://localhost:${PORT}`);
+  });
+}
+
+export default app;
