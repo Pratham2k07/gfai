@@ -222,6 +222,7 @@ app.delete('/api/characters/:id', async (req: Request, res: Response) => {
 app.get('/api/characters/:id/messages', async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
+    await replyScheduler.checkAndExecutePending(id);
     const messages = await db.getMessages(id);
     res.json(messages);
   } catch (err: any) {
@@ -450,8 +451,9 @@ app.post('/api/characters/:id/messages', async (req: Request, res: Response) => 
 });
 
 // Check status of a pending reply for a specific character
-app.get('/api/characters/:id/reply-status', (req: Request, res: Response) => {
+app.get('/api/characters/:id/reply-status', async (req: Request, res: Response) => {
   const characterId = req.params.id as string;
+  await replyScheduler.checkAndExecutePending(characterId);
   const pendingReply = replyScheduler.getInfo(characterId);
   res.json({ pendingReply });
 });

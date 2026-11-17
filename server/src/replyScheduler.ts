@@ -146,6 +146,21 @@ class ReplyScheduler {
     return this.getInfo(characterId)!;
   }
 
+  async checkAndExecutePending(characterId: string): Promise<boolean> {
+    const pending = this.pendingMap.get(characterId);
+    if (pending && Date.now() >= pending.scheduledAt) {
+      clearTimeout(pending.timer);
+      this.pendingMap.delete(characterId);
+      try {
+        await pending.onExecute();
+        return true;
+      } catch (err) {
+        console.error(`[ReplyScheduler] checkAndExecutePending error for ${characterId}:`, err);
+      }
+    }
+    return false;
+  }
+
   getPending(characterId: string): PendingReply | undefined {
     return this.pendingMap.get(characterId);
   }
