@@ -30,7 +30,7 @@ app.use((req: Request, res: Response, next) => {
     (req.headers['x-matched-path'] as string) ||
     (req.headers['x-forwarded-uri'] as string) ||
     (req.headers['x-now-route-matches'] as string);
-  if (vercelOriginal && vercelOriginal.startsWith('/api') && (req.url === '/api' || req.url === '/api/' || req.url === '/')) {
+  if (vercelOriginal && vercelOriginal.startsWith('/api') && (req.url === '/api' || req.url === '/api/' || req.url === '/' || req.url === '/api/index.js' || req.url.startsWith('/api/index.js?'))) {
     const queryIndex = req.url.indexOf('?');
     const queryString = queryIndex !== -1 ? req.url.slice(queryIndex) : '';
     req.url = vercelOriginal + queryString;
