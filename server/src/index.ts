@@ -26,14 +26,20 @@ app.use(express.json({ limit: '15mb' }));
 
 // Vercel serverless environment URL normalization
 app.use((req: Request, res: Response, next) => {
-  const vercelOriginal =
-    (req.headers['x-matched-path'] as string) ||
-    (req.headers['x-forwarded-uri'] as string) ||
-    (req.headers['x-now-route-matches'] as string);
-  if (vercelOriginal && vercelOriginal.startsWith('/api') && (req.url === '/api' || req.url === '/api/' || req.url === '/' || req.url === '/api/index.js' || req.url.startsWith('/api/index.js?'))) {
+  const queryUrl = (req.query?.__url as string) || (req.query?.path as string);
+  const forwardedUri = req.headers['x-forwarded-uri'] as string;
+  const vercelOriginalUrl = req.headers['x-vercel-original-url'] as string;
+  const matchedPath = req.headers['x-matched-path'] as string;
+
+  // matchedPath is /api/index.js in Vercel lambda - only use if it's an actual endpoint route
+  const validMatchedPath = (matchedPath && !matchedPath.endsWith('index.js') && !matchedPath.endsWith('index')) ? matchedPath : null;
+
+  const resolvedPath = queryUrl || forwardedUri || vercelOriginalUrl || validMatchedPath;
+
+  if (resolvedPath && resolvedPath.startsWith('/api')) {
     const queryIndex = req.url.indexOf('?');
     const queryString = queryIndex !== -1 ? req.url.slice(queryIndex) : '';
-    req.url = vercelOriginal + queryString;
+    req.url = resolvedPath + queryString;
   }
   next();
 });
@@ -150,23 +156,28 @@ app.post('/api/characters', async (req: Request, res: Response) => {
       communication_preferences
     } = req.body;
 
-    if (!name || !age || !avatar) {
-      return res.status(400).json({ error: 'Name, age (18+), and avatar are required.' });
+    if (!name || !avatar) {
+      return res.status(400).json({ error: 'Name and avatar are required.' });
     }
 
-    if (Number(age) < 18) {
+    const parsedAge = Number(age) || 22;
+    if (parsedAge < 18) {
       return res.status(400).json({ error: 'Character age must be 18 or above.' });
     }
 
-    const computedHandle = handle ? String(handle).replace(/^@/, '').trim() : name.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const computedHandle = handle
+      ? String(handle).replace(/^@/, '').trim()
+      : name.trim().toLowerCase().replace(/[^a-z0-9]/g, '_') || 'companion';
+
+    const cleanAvatar = String(avatar).trim() || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80';
 
     const newChar = await db.createCharacter({
       user_id: 'user-default',
       name: name.trim(),
       handle: computedHandle,
       has_story: true,
-      age: Number(age),
-      avatar: avatar.trim(),
+      age: parsedAge,
+      avatar: cleanAvatar,
       introduction: introduction || `Hey there! I'm ${name.trim()}. So excited to chat with you! ✨`,
       backstory: backstory || `${name.trim()} is an engaging and expressive companion who enjoys having meaningful conversations.`,
       appearance: appearance || {
@@ -201,13 +212,17 @@ app.post('/api/characters', async (req: Request, res: Response) => {
     });
 
     // Automatically send initial greeting message from the girlfriend!
-    await db.addMessage({
-      character_id: newChar.id,
-      user_id: 'user-default',
-      sender: 'girlfriend',
-      message: newChar.introduction,
-      status: 'read'
-    });
+    try {
+      await db.addMessage({
+        character_id: newChar.id,
+        user_id: 'user-default',
+        sender: 'girlfriend',
+        message: newChar.introduction,
+        status: 'read'
+      });
+    } catch (msgErr) {
+      console.warn('Initial greeting message failed to write to db:', msgErr);
+    }
 
     res.status(201).json(newChar);
   } catch (err: any) {

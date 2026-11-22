@@ -54,7 +54,12 @@ export const App: React.FC = () => {
     ]).then(([chars, setts]) => {
       if (chars && chars.length > 0) {
         setCharacters(chars);
-        setActiveCharacterId(chars[0].id);
+        const storedActiveId = localStorage.getItem('velora_active_char_id');
+        if (storedActiveId && chars.some(c => c.id === storedActiveId)) {
+          setActiveCharacterId(storedActiveId);
+        } else {
+          setActiveCharacterId(chars[0].id);
+        }
       }
       if (setts) {
         setSettings(setts);
@@ -111,8 +116,14 @@ export const App: React.FC = () => {
 
     if (charId) {
       setActiveCharacterId(charId);
+      try {
+        localStorage.setItem('velora_active_char_id', charId);
+      } catch (e) {}
     } else if (!activeCharacterId && characters.length > 0) {
       setActiveCharacterId(characters[0].id);
+      try {
+        localStorage.setItem('velora_active_char_id', characters[0].id);
+      } catch (e) {}
     }
     setView('chat');
   };
@@ -122,8 +133,20 @@ export const App: React.FC = () => {
   };
 
   const handleCharacterCreated = (newChar: Character) => {
-    setCharacters(prev => [newChar, ...prev]);
+    setCharacters(prev => {
+      const filtered = prev.filter(c => c.id !== newChar.id);
+      const updated = [newChar, ...filtered];
+      try {
+        localStorage.setItem('velora_saved_characters', JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
     setActiveCharacterId(newChar.id);
+    try {
+      localStorage.setItem('velora_active_char_id', newChar.id);
+    } catch (e) {}
     // After creating a companion, direct straight to chat with her!
     setView('chat');
   };

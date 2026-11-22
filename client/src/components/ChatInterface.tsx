@@ -102,9 +102,47 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     fetchMessages(activeCharacter.id)
       .then(msgs => {
-        setMessagesMap(prev => ({ ...prev, [activeCharacter.id]: msgs }));
+        if (msgs && msgs.length > 0) {
+          setMessagesMap(prev => ({ ...prev, [activeCharacter.id]: msgs }));
+        } else {
+          setMessagesMap(prev => {
+            if (prev[activeCharacter.id]?.length) return prev;
+            return {
+              ...prev,
+              [activeCharacter.id]: [
+                {
+                  id: `welcome-${activeCharacter.id}`,
+                  character_id: activeCharacter.id,
+                  user_id: 'user-default',
+                  sender: 'girlfriend',
+                  message: activeCharacter.introduction || `Hey there! So excited to chat with you! ✨`,
+                  status: 'read',
+                  timestamp: new Date().toISOString()
+                }
+              ]
+            };
+          });
+        }
       })
-      .catch(console.error);
+      .catch(() => {
+        setMessagesMap(prev => {
+          if (prev[activeCharacter.id]?.length) return prev;
+          return {
+            ...prev,
+            [activeCharacter.id]: [
+              {
+                id: `welcome-${activeCharacter.id}`,
+                character_id: activeCharacter.id,
+                user_id: 'user-default',
+                sender: 'girlfriend',
+                message: activeCharacter.introduction || `Hey there! So excited to chat with you! ✨`,
+                status: 'read',
+                timestamp: new Date().toISOString()
+              }
+            ]
+          };
+        });
+      });
 
     fetchMemories(activeCharacter.id)
       .then(mems => {
