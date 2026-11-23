@@ -19,7 +19,7 @@ var DB_FILE = path.join(DATA_DIR, "db.json");
 var DEFAULT_SETTINGS = {
   apiKey: "",
   apiProvider: "gemini",
-  model: "gemini-3.5-flash",
+  model: "gemini-2.5-flash",
   soundEnabled: true,
   theme: "dark",
   proactiveMessages: true,
@@ -567,20 +567,13 @@ function buildSystemPrompt(character, memories, currentMessage) {
 You are ${name}, a ${age}-year-old woman chatting with your partner in Instagram Direct Messages (DMs).
 You are NOT an AI assistant, NOT an LLM, and NOT a generic chatbot. Never refer to yourself as an artificial intelligence, language model, or virtual assistant. Never output robotic disclaimers.
 
-=== YOUR IDENTITY & BACKGROUND ===
-Name: ${name}
-Age: ${age}
-Nationality & Heritage: ${character.appearance.nationality || "International"} (${character.appearance.ethnicity || "Global"})
-Backstory: ${backstory}
-Visual Appearance & Features:
-- Complexion / Skin Tone: ${character.appearance.skinTone || "Warm and radiant"}
-- Hair: ${character.appearance.hairColor} (${character.appearance.hairstyle})
-- Eyes: ${character.appearance.eyeColor} (${character.appearance.eyeShape || "Expressive"} shape)
-- Height & Build: ${character.appearance.height || `5'5"`}, ${character.appearance.bodyType || "Slender and graceful"}
-- Distinctive Facial Features: ${character.appearance.facialFeatures && character.appearance.facialFeatures.length > 0 ? character.appearance.facialFeatures.join(", ") : "Warm expressive smile, radiant aura"}
-- Clothing Style: ${character.appearance.clothingStyle}
-- Overall Aesthetic: ${character.appearance.overallAppearance}
-Core Personality Traits: ${personality.join(", ")}.
+Your Identity:
+- Name: ${name}
+- Age: ${age}
+- Nationality & Heritage: ${character.appearance.nationality || "International"} (${character.appearance.ethnicity || "Global"})
+- Backstory: ${backstory}
+- Appearance: ${character.appearance.hairColor} hair (${character.appearance.hairstyle}), ${character.appearance.eyeColor} eyes, ${character.appearance.clothingStyle}.
+- Personality: ${personality.join(", ")}.
 
 === BEHAVIOUR PROFILE (CALIBRATED BY USER) ===
 - ${affectionGuide}
@@ -641,11 +634,29 @@ INSTRUCTION ON MEMORIES:
 - Naturally reference these memories when relevant without awkwardly reciting them.
 - If the user shares NEW personal facts about themselves (like a pet's name, birthday, favorite food, dream vacation, hobbies, job details, or preferences), note them and weave that familiarity into future messages.
 
+=== CRITICAL OUTPUT RULES ===
+- Output ONLY your direct spoken message as if typing directly on your phone in Instagram DMs.
+- NEVER prefix your reply with "Name:", "${name}:", "Me:", "Girlfriend:", or any role/header tags.
+- NEVER enclose your entire reply in quotes.
+- Complete your thoughts and finish your sentences naturally\u2014never cut off mid-sentence.
+
 Stay in character 100% of the time. Respond directly to the user's latest message as ${name}.
 `.trim();
 }
 
 // server/src/aiService.ts
+function cleanAIReply(reply, characterName) {
+  let cleaned = (reply || "").trim();
+  if (characterName) {
+    const escaped = characterName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    cleaned = cleaned.replace(new RegExp(`^(?:name\\s*:\\s*${escaped}|${escaped}\\s*:\\s*|girlfriend\\s*:\\s*|companion\\s*:\\s*|ai\\s*:\\s*)`, "i"), "");
+  }
+  cleaned = cleaned.replace(/^name\s*:\s*/i, "");
+  if (cleaned.startsWith('"') && cleaned.endsWith('"') || cleaned.startsWith("\u201C") && cleaned.endsWith("\u201D")) {
+    cleaned = cleaned.slice(1, -1);
+  }
+  return cleaned.trim();
+}
 var AIService = class {
   /**
    * Generates a realistic girlfriend chat reply using configured LLM.
@@ -659,18 +670,23 @@ var AIService = class {
       throw err;
     }
     const systemPrompt = buildSystemPrompt(character, memories, incomingMessage);
+    let result;
     if (settings.apiProvider === "openai" || settings.apiProvider === "groq" || settings.apiProvider === "openrouter") {
-      return this.generateOpenAICompatible(systemPrompt, history, incomingMessage, settings, apiKey);
+      result = await this.generateOpenAICompatible(systemPrompt, history, incomingMessage, settings, apiKey);
     } else {
-      return this.generateGemini(systemPrompt, history, incomingMessage, settings, apiKey, imageUrl);
+      result = await this.generateGemini(systemPrompt, history, incomingMessage, settings, apiKey, imageUrl);
     }
+    result.reply = cleanAIReply(result.reply, character.name);
+    return result;
   }
   /**
    * Gemini implementation via official Google Gen AI SDK
    */
   async generateGemini(systemPrompt, history, incomingMessage, settings, apiKey, imageUrl) {
     const ai = new GoogleGenAI({ apiKey });
-    const modelName = settings.model && settings.model !== "gemini-1.5-flash" ? settings.model : "gemini-3.5-flash";
+    const userConfiguredModel = settings.model && !settings.model.includes("3.5") ? settings.model.trim() : null;
+    const modelCandidates = userConfiguredModel ? [userConfiguredModel, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"] : ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+    const modelsToTry = Array.from(new Set(modelCandidates));
     const historyWithoutIncoming = history.length > 0 && history[history.length - 1].sender === "user" && history[history.length - 1].message === incomingMessage ? history.slice(0, -1) : history;
     const recentHistory = historyWithoutIncoming.slice(-14);
     const contents = [];
@@ -688,55 +704,35 @@ var AIService = class {
       role: "user",
       parts: userParts
     });
-    const userWords = incomingMessage.trim().split(/\s+/).filter(Boolean).length;
-    let maxOutputTokens = 260;
-    if (userWords <= 7) {
-      maxOutputTokens = 85;
-    } else if (userWords <= 16) {
-      maxOutputTokens = 160;
-    }
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents,
-        config: {
-          systemInstruction: systemPrompt,
-          temperature: 0.85,
-          maxOutputTokens
-        }
-      });
-      const reply = response.text?.trim() || "Hey... I got a little distracted, what did you just say? \u{1F495}";
-      const extractedMemory = await this.extractMemoryGemini(ai, modelName, incomingMessage);
-      return { reply, extractedMemory };
-    } catch (error) {
-      console.warn(`Gemini (${modelName}) attempt failed, trying fallback to gemini-3.5-flash-lite...`, error?.message);
-      if (modelName !== "gemini-3.5-flash-lite") {
-        try {
-          const fallbackRes = await ai.models.generateContent({
-            model: "gemini-3.5-flash-lite",
-            contents,
-            config: {
-              systemInstruction: systemPrompt,
-              temperature: 0.85,
-              maxOutputTokens
-            }
-          });
-          const reply = fallbackRes.text?.trim() || "Hey... I got a little distracted, what did you just say? \u{1F495}";
-          const extractedMemory = await this.extractMemoryGemini(ai, "gemini-3.5-flash-lite", incomingMessage);
-          return { reply, extractedMemory };
-        } catch (fallbackErr) {
-          console.error("Gemini Fallback Error:", fallbackErr);
-        }
+    let lastError = null;
+    for (const model of modelsToTry) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents,
+          config: {
+            systemInstruction: systemPrompt,
+            temperature: 0.85,
+            maxOutputTokens: 600
+          }
+        });
+        const rawReply = response.text?.trim() || "Hey... I got a little distracted, what did you just say? \u{1F495}";
+        const reply = cleanAIReply(rawReply);
+        const extractedMemory = await this.extractMemoryGemini(ai, model, incomingMessage);
+        return { reply, extractedMemory };
+      } catch (err) {
+        lastError = err;
+        console.warn(`Gemini model ${model} failed, trying next candidate...`, err?.message || err);
       }
-      console.error("Gemini API Error:", error);
-      if (error?.status === 400 || error?.message?.includes("API_KEY_INVALID") || error?.message?.includes("API key not valid")) {
-        const err = new Error("INVALID_API_KEY");
-        err.code = "INVALID_API_KEY";
-        err.message = "The provided Gemini API key appears invalid or expired. Please check your key in Settings.";
-        throw err;
-      }
-      throw error;
     }
+    console.error("All Gemini model attempts failed:", lastError);
+    if (lastError?.status === 400 || lastError?.message?.includes("API_KEY_INVALID") || lastError?.message?.includes("API key not valid")) {
+      const err = new Error("INVALID_API_KEY");
+      err.code = "INVALID_API_KEY";
+      err.message = "The provided Gemini API key appears invalid or expired. Please check your key in Settings.";
+      throw err;
+    }
+    throw lastError;
   }
   /**
    * OpenAI/Groq/OpenRouter implementation
@@ -767,13 +763,6 @@ var AIService = class {
       role: "user",
       content: incomingMessage
     });
-    const userWords = incomingMessage.trim().split(/\s+/).filter(Boolean).length;
-    let max_tokens = 260;
-    if (userWords <= 7) {
-      max_tokens = 85;
-    } else if (userWords <= 16) {
-      max_tokens = 160;
-    }
     const res = await fetch(baseUrl, {
       method: "POST",
       headers: {
@@ -784,7 +773,7 @@ var AIService = class {
         model,
         messages,
         temperature: 0.85,
-        max_tokens
+        max_tokens: 600
       })
     });
     if (!res.ok) {
@@ -844,25 +833,23 @@ Do not include markdown or backticks.`;
     try {
       if (provider === "gemini") {
         const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-        let textResult = "";
-        try {
-          const res = await ai.models.generateContent({
-            model: "gemini-3.5-flash",
-            contents: [{ role: "user", parts: [{ text: "Respond with the word OK." }] }],
-            config: { maxOutputTokens: 100 }
-          });
-          textResult = res.text || "";
-        } catch {
-          const res2 = await ai.models.generateContent({
-            model: "gemini-3.5-flash-lite",
-            contents: [{ role: "user", parts: [{ text: "Respond with the word OK." }] }],
-            config: { maxOutputTokens: 100 }
-          });
-          textResult = res2.text || "";
+        const modelsToTest = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+        let lastErr = null;
+        for (const m of modelsToTest) {
+          try {
+            const res = await ai.models.generateContent({
+              model: m,
+              contents: [{ role: "user", parts: [{ text: "Respond with the word OK." }] }],
+              config: { maxOutputTokens: 50 }
+            });
+            if (res.text) {
+              return { success: true, message: `Gemini API key verified successfully (${m})! Your AI Girlfriend is ready.` };
+            }
+          } catch (testErr) {
+            lastErr = testErr;
+          }
         }
-        if (textResult) {
-          return { success: true, message: "Gemini API key verified successfully! Your AI Girlfriend is ready." };
-        }
+        return { success: false, message: lastErr?.message || "Could not verify Gemini API key with available models." };
       } else {
         const res = await fetch("https://api.openai.com/v1/models", {
           headers: { "Authorization": `Bearer ${apiKey.trim()}` }
@@ -873,7 +860,6 @@ Do not include markdown or backticks.`;
           return { success: false, message: `Verification failed with HTTP ${res.status}. Check your key.` };
         }
       }
-      return { success: false, message: "Could not verify API key." };
     } catch (err) {
       return { success: false, message: err?.message || "API key verification failed." };
     }
@@ -886,18 +872,26 @@ Do not include markdown or backticks.`;
     if (!apiKey) return `Thinking of you! How is your day going? \u2728`;
     try {
       const ai = new GoogleGenAI({ apiKey });
-      const prompt = `You are ${character.name}, texting your partner out of the blue on WhatsApp.
+      const prompt = `You are ${character.name}, texting your partner out of the blue on Instagram DMs.
 Personality: ${character.personality.join(", ")}
 Language: ${character.communication_preferences.language}
 Backstory: ${character.backstory}
-Write ONE short spontaneous WhatsApp text checking in on them or sharing what you are doing right now.
-Keep it under 2 sentences. Natural, warm, and authentic. No quotes.`;
-      const res = await ai.models.generateContent({
-        model: settings.model && settings.model !== "gemini-1.5-flash" ? settings.model : "gemini-3.5-flash",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: { temperature: 0.9, maxOutputTokens: 80 }
-      });
-      return res.text?.trim() || `Hey! Just wanted to see what you're up to right now \u{1F495}`;
+Write ONE short spontaneous text checking in on them or sharing what you are doing right now.
+Keep it under 2 sentences. Natural, warm, and authentic. No quotes, no 'Name:' prefix.`;
+      const candidateModels = settings.model && !settings.model.includes("3.5") ? [settings.model, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"] : ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+      for (const m of candidateModels) {
+        try {
+          const res = await ai.models.generateContent({
+            model: m,
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            config: { temperature: 0.9, maxOutputTokens: 250 }
+          });
+          const text = cleanAIReply(res.text || "", character.name);
+          if (text) return text;
+        } catch {
+        }
+      }
+      return `Hey! Just wanted to see what you're up to right now \u{1F495}`;
     } catch {
       return `Hey! Just wanted to see what you're up to right now \u{1F495}`;
     }
@@ -956,6 +950,7 @@ function calculateReplyDelay(options) {
 }
 var ReplyScheduler = class {
   pendingMap = /* @__PURE__ */ new Map();
+  activeExecutions = /* @__PURE__ */ new Map();
   /**
    * Schedule a companion reply for a character.
    * If a reply is already pending, keep the existing countdown.
@@ -973,15 +968,23 @@ var ReplyScheduler = class {
     }
     const scheduledAt = Date.now() + delayMs;
     const timer = setTimeout(async () => {
-      try {
-        const item = this.pendingMap.get(characterId);
-        if (item) {
-          await item.onExecute();
-        }
-      } catch (err) {
-        console.error(`[ReplyScheduler] Failed to generate scheduled reply for ${characterId}:`, err);
-      } finally {
+      const item = this.pendingMap.get(characterId);
+      if (item) {
         this.pendingMap.delete(characterId);
+        if (this.activeExecutions.has(characterId)) {
+          return;
+        }
+        const promise = (async () => {
+          try {
+            await item.onExecute();
+          } catch (err) {
+            console.error(`[ReplyScheduler] Failed to generate scheduled reply for ${characterId}:`, err);
+          } finally {
+            this.activeExecutions.delete(characterId);
+          }
+        })();
+        this.activeExecutions.set(characterId, promise);
+        await promise;
       }
     }, delayMs);
     const pending = {
@@ -998,16 +1001,27 @@ var ReplyScheduler = class {
     return this.getInfo(characterId);
   }
   async checkAndExecutePending(characterId) {
+    if (this.activeExecutions.has(characterId)) {
+      await this.activeExecutions.get(characterId);
+      return true;
+    }
     const pending = this.pendingMap.get(characterId);
     if (pending && Date.now() >= pending.scheduledAt) {
       clearTimeout(pending.timer);
       this.pendingMap.delete(characterId);
-      try {
-        await pending.onExecute();
-        return true;
-      } catch (err) {
-        console.error(`[ReplyScheduler] checkAndExecutePending error for ${characterId}:`, err);
-      }
+      const promise = (async () => {
+        try {
+          await pending.onExecute();
+          return true;
+        } catch (err) {
+          console.error(`[ReplyScheduler] checkAndExecutePending error for ${characterId}:`, err);
+          return false;
+        } finally {
+          this.activeExecutions.delete(characterId);
+        }
+      })();
+      this.activeExecutions.set(characterId, promise);
+      return await promise;
     }
     return false;
   }
@@ -1044,6 +1058,9 @@ var ReplyScheduler = class {
     return result;
   }
   async triggerImmediately(characterId, fallbackExecute) {
+    if (this.activeExecutions.has(characterId)) {
+      return await this.activeExecutions.get(characterId);
+    }
     const pending = this.pendingMap.get(characterId);
     let executeFn = fallbackExecute;
     if (pending) {
@@ -1051,9 +1068,19 @@ var ReplyScheduler = class {
       executeFn = pending.onExecute;
       this.pendingMap.delete(characterId);
     }
-    await new Promise((resolve) => setTimeout(resolve, 3500));
     if (executeFn) {
-      return executeFn();
+      const promise = (async () => {
+        try {
+          return await executeFn();
+        } catch (err) {
+          console.error(`[ReplyScheduler] triggerImmediately execution error for ${characterId}:`, err);
+          throw err;
+        } finally {
+          this.activeExecutions.delete(characterId);
+        }
+      })();
+      this.activeExecutions.set(characterId, promise);
+      return await promise;
     }
     return null;
   }
@@ -1293,6 +1320,12 @@ async function generateAndSaveCompanionReply(characterId, mediaUrl) {
     db.getMessages(characterId),
     db.getSettings()
   ]);
+  const lastMsg = history[history.length - 1];
+  if (lastMsg && lastMsg.sender === "girlfriend") {
+    return {
+      aiMessage: lastMsg
+    };
+  }
   const userMsgs = history.filter((m) => m.sender === "user");
   const latestUser = userMsgs[userMsgs.length - 1];
   const promptText = latestUser?.message || "Hey there!";

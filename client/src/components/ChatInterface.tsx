@@ -48,6 +48,19 @@ interface ChatInterfaceProps {
   onOpenAccount?: () => void;
 }
 
+const dedupeMessages = (list: Message[]): Message[] => {
+  const seen = new Set<string>();
+  const deduped: Message[] = [];
+  for (const m of list) {
+    if (!m || !m.id) continue;
+    if (!seen.has(m.id)) {
+      seen.add(m.id);
+      deduped.push(m);
+    }
+  }
+  return deduped;
+};
+
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   characters,
   activeCharacterId,
@@ -206,10 +219,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const interval = setInterval(async () => {
       try {
         const msgs = await fetchMessages(activeCharacter.id);
-        const prevCount = (messagesMap[activeCharacter.id] || []).length;
-
-        if (msgs.length > prevCount) {
-          setMessagesMap(prev => ({ ...prev, [activeCharacter.id]: msgs }));
+        if (msgs && msgs.length > 0) {
+          setMessagesMap(prev => {
+            const currentList = prev[activeCharacter.id] || [];
+            if (msgs.length === currentList.length && msgs[msgs.length - 1]?.id === currentList[currentList.length - 1]?.id) {
+              return prev;
+            }
+            return {
+              ...prev,
+              [activeCharacter.id]: dedupeMessages(msgs)
+            };
+          });
 
           const lastMsg = msgs[msgs.length - 1];
           if (lastMsg && lastMsg.sender === 'girlfriend') {
@@ -334,15 +354,29 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const handleSkipDelay = async () => {
-    if (!activeCharacter) return;
+    if (!activeCharacter || isSkipping) return;
     setIsSkipping(true);
     try {
+      // Clear pending delay banner immediately for responsive UI
+      setPendingReplies(prev => {
+        if (!prev[activeCharacter.id]) return prev;
+        const next = { ...prev };
+        delete next[activeCharacter.id];
+        return next;
+      });
+
       const res = await skipReplyDelay(activeCharacter.id);
       if (res.aiMessage) {
-        setMessagesMap(prev => ({
-          ...prev,
-          [activeCharacter.id]: [...(prev[activeCharacter.id] || []), res.aiMessage]
-        }));
+        setMessagesMap(prev => {
+          const currentList = prev[activeCharacter.id] || [];
+          if (currentList.some(m => m.id === res.aiMessage.id)) {
+            return prev;
+          }
+          return {
+            ...prev,
+            [activeCharacter.id]: dedupeMessages([...currentList, res.aiMessage])
+          };
+        });
         soundFX.playReceived();
       }
 
@@ -371,11 +405,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         );
       }
 
-      setPendingReplies(prev => {
-        const next = { ...prev };
-        delete next[activeCharacter.id];
-        return next;
-      });
       setIsTyping(false);
     } catch (err: any) {
       console.error('Failed to skip delay:', err);
@@ -623,8 +652,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
 
               {/* Messages List */}
-              {currentMessages.map((msg, idx) => {
-                const isLatest = idx === currentMessages.length - 1 && msg.sender === 'user';
+              {dedupeMessages(currentMessages).map((msg, idx, arr) => {
+                const isLatest = idx === arr.length - 1 && msg.sender === 'user';
                 const isSeen = isLatest && Boolean(activePendingReply?.isSeen || msg.status === 'read' || msg.status === 'seen');
                 return (
                   <ChatMessageBubble

@@ -279,6 +279,14 @@ async function generateAndSaveCompanionReply(characterId: string, mediaUrl?: str
     db.getSettings()
   ]);
 
+  // If the last message is already from girlfriend, it was already generated/saved. Return it to prevent duplicate replies.
+  const lastMsg = history[history.length - 1];
+  if (lastMsg && lastMsg.sender === 'girlfriend') {
+    return {
+      aiMessage: lastMsg
+    };
+  }
+
   const userMsgs = history.filter(m => m.sender === 'user');
   const latestUser = userMsgs[userMsgs.length - 1];
   const promptText = latestUser?.message || "Hey there!";

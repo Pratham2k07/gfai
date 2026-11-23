@@ -61,12 +61,12 @@
       },
       "relationship_level": 4,
       "relationship_title": "Romantic Dating",
-      "xp": 710,
+      "xp": 740,
       "proactive_enabled": true,
       "is_online": true,
       "custom_status": "enjoying the rain with music ☕🌧️",
       "created_at": "2026-10-30T07:34:04.179Z",
-      "updated_at": "2026-11-22T19:28:52.441Z",
+      "updated_at": "2026-11-22T19:29:19.960Z",
       "handle": "aanya.sharma",
       "has_story": true
     },
@@ -1011,73 +1011,10 @@
       "character_id": "char-aanya",
       "user_id": "user-default",
       "sender": "girlfriend",
-      "message": "Name: A",
+      "message": "Arey yahi hu! Bas thoda aalas kar rahi thi bed pe haha, kya chal raha hai? ✨",
       "status": "read",
       "id": "msg-133464de-4df0-4cb4-801f-3445dfbc5a9d",
       "timestamp": "2026-11-22T19:26:37.743Z"
-    },
-    {
-      "character_id": "char-aanya",
-      "user_id": "user-default",
-      "sender": "user",
-      "message": "kyaa name a",
-      "status": "read",
-      "id": "msg-3368a70c-36b5-4e0f-ab83-a3928a48f8c6",
-      "timestamp": "2026-11-22T19:26:46.950Z"
-    },
-    {
-      "character_id": "char-aanya",
-      "user_id": "user-default",
-      "sender": "girlfriend",
-      "message": "Areyyy",
-      "status": "read",
-      "id": "msg-123fa4ae-2e48-4309-8ff8-b880ca245972",
-      "timestamp": "2026-11-22T19:27:16.560Z"
-    },
-    {
-      "character_id": "char-aanya",
-      "user_id": "user-default",
-      "sender": "girlfriend",
-      "message": "Arey glitch",
-      "status": "read",
-      "id": "msg-50364e17-d532-42d6-8e16-68ac9db7d41b",
-      "timestamp": "2026-11-22T19:27:40.088Z"
-    },
-    {
-      "character_id": "char-aanya",
-      "user_id": "user-default",
-      "sender": "user",
-      "message": "kyaa horha hai tujhe bhaii",
-      "status": "read",
-      "id": "msg-7c1af8c4-f0d9-42cd-909c-baf1c1210f4c",
-      "timestamp": "2026-11-22T19:28:11.681Z"
-    },
-    {
-      "character_id": "char-aanya",
-      "user_id": "user-default",
-      "sender": "girlfriend",
-      "message": "Haha my phone",
-      "status": "read",
-      "id": "msg-83b289aa-34c9-4227-a7da-0386d0c5e8dd",
-      "timestamp": "2026-11-22T19:28:42.917Z"
-    },
-    {
-      "character_id": "char-aanya",
-      "user_id": "user-default",
-      "sender": "girlfriend",
-      "message": "Haha, lag",
-      "status": "read",
-      "id": "msg-5de95be9-7615-4d47-aecc-8f9239f2df3c",
-      "timestamp": "2026-11-22T19:28:52.422Z"
-    },
-    {
-      "character_id": "char-aanya",
-      "user_id": "user-default",
-      "sender": "user",
-      "message": "aur bata",
-      "status": "delivered",
-      "id": "msg-238ce819-8782-4675-a176-9264eeae6f45",
-      "timestamp": "2026-11-22T19:28:53.578Z"
     }
   ],
   "memories": [
@@ -1130,7 +1067,7 @@
   "settings": {
     "apiKey": "",
     "apiProvider": "gemini",
-    "model": "gemini-3.5-flash",
+    "model": "gemini-2.5-flash",
     "soundEnabled": true,
     "theme": "dark",
     "proactiveMessages": true,

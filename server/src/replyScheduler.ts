@@ -89,6 +89,7 @@ export function calculateReplyDelay(options?: {
 
 class ReplyScheduler {
   private pendingMap = new Map<string, PendingReply>();
+  private activeExecutions = new Map<string, Promise<any>>();
 
   /**
    * Schedule a companion reply for a character.
@@ -118,15 +119,24 @@ class ReplyScheduler {
     const scheduledAt = Date.now() + delayMs;
 
     const timer = setTimeout(async () => {
-      try {
-        const item = this.pendingMap.get(characterId);
-        if (item) {
-          await item.onExecute();
-        }
-      } catch (err) {
-        console.error(`[ReplyScheduler] Failed to generate scheduled reply for ${characterId}:`, err);
-      } finally {
+      const item = this.pendingMap.get(characterId);
+      if (item) {
         this.pendingMap.delete(characterId);
+        // Avoid double running if already in flight
+        if (this.activeExecutions.has(characterId)) {
+          return;
+        }
+        const promise = (async () => {
+          try {
+            await item.onExecute();
+          } catch (err) {
+            console.error(`[ReplyScheduler] Failed to generate scheduled reply for ${characterId}:`, err);
+          } finally {
+            this.activeExecutions.delete(characterId);
+          }
+        })();
+        this.activeExecutions.set(characterId, promise);
+        await promise;
       }
     }, delayMs);
 
@@ -147,16 +157,30 @@ class ReplyScheduler {
   }
 
   async checkAndExecutePending(characterId: string): Promise<boolean> {
+    if (this.activeExecutions.has(characterId)) {
+      await this.activeExecutions.get(characterId);
+      return true;
+    }
+
     const pending = this.pendingMap.get(characterId);
     if (pending && Date.now() >= pending.scheduledAt) {
       clearTimeout(pending.timer);
       this.pendingMap.delete(characterId);
-      try {
-        await pending.onExecute();
-        return true;
-      } catch (err) {
-        console.error(`[ReplyScheduler] checkAndExecutePending error for ${characterId}:`, err);
-      }
+
+      const promise = (async () => {
+        try {
+          await pending.onExecute();
+          return true;
+        } catch (err) {
+          console.error(`[ReplyScheduler] checkAndExecutePending error for ${characterId}:`, err);
+          return false;
+        } finally {
+          this.activeExecutions.delete(characterId);
+        }
+      })();
+
+      this.activeExecutions.set(characterId, promise);
+      return await promise;
     }
     return false;
   }
@@ -201,6 +225,11 @@ class ReplyScheduler {
   }
 
   async triggerImmediately(characterId: string, fallbackExecute?: () => Promise<any>): Promise<any> {
+    // If an execution is already in flight for this character, wait and return its result
+    if (this.activeExecutions.has(characterId)) {
+      return await this.activeExecutions.get(characterId);
+    }
+
     const pending = this.pendingMap.get(characterId);
     let executeFn = fallbackExecute;
     if (pending) {
@@ -208,10 +237,21 @@ class ReplyScheduler {
       executeFn = pending.onExecute;
       this.pendingMap.delete(characterId);
     }
-    // Realistic short typing delay (3.5s) so instant/skip is never a robot
-    await new Promise(resolve => setTimeout(resolve, 3500));
+
     if (executeFn) {
-      return executeFn();
+      const promise = (async () => {
+        try {
+          return await executeFn();
+        } catch (err) {
+          console.error(`[ReplyScheduler] triggerImmediately execution error for ${characterId}:`, err);
+          throw err;
+        } finally {
+          this.activeExecutions.delete(characterId);
+        }
+      })();
+
+      this.activeExecutions.set(characterId, promise);
+      return await promise;
     }
     return null;
   }

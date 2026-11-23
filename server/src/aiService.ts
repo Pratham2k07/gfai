@@ -11,6 +11,19 @@ export interface AIServiceResponse {
   };
 }
 
+function cleanAIReply(reply: string, characterName?: string): string {
+  let cleaned = (reply || '').trim();
+  if (characterName) {
+    const escaped = characterName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    cleaned = cleaned.replace(new RegExp(`^(?:name\\s*:\\s*${escaped}|${escaped}\\s*:\\s*|girlfriend\\s*:\\s*|companion\\s*:\\s*|ai\\s*:\\s*)`, 'i'), '');
+  }
+  cleaned = cleaned.replace(/^name\s*:\s*/i, '');
+  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith('“') && cleaned.endsWith('”'))) {
+    cleaned = cleaned.slice(1, -1);
+  }
+  return cleaned.trim();
+}
+
 export class AIService {
   /**
    * Generates a realistic girlfriend chat reply using configured LLM.
@@ -34,11 +47,15 @@ export class AIService {
 
     const systemPrompt = buildSystemPrompt(character, memories, incomingMessage);
 
+    let result: AIServiceResponse;
     if (settings.apiProvider === 'openai' || settings.apiProvider === 'groq' || settings.apiProvider === 'openrouter') {
-      return this.generateOpenAICompatible(systemPrompt, history, incomingMessage, settings, apiKey);
+      result = await this.generateOpenAICompatible(systemPrompt, history, incomingMessage, settings, apiKey);
     } else {
-      return this.generateGemini(systemPrompt, history, incomingMessage, settings, apiKey, imageUrl);
+      result = await this.generateGemini(systemPrompt, history, incomingMessage, settings, apiKey, imageUrl);
     }
+
+    result.reply = cleanAIReply(result.reply, character.name);
+    return result;
   }
 
   /**
@@ -53,9 +70,13 @@ export class AIService {
     imageUrl?: string
   ): Promise<AIServiceResponse> {
     const ai = new GoogleGenAI({ apiKey });
-    const modelName = settings.model && settings.model !== 'gemini-1.5-flash'
-      ? settings.model
-      : 'gemini-3.5-flash';
+
+    // Candidate models to try in order of preference
+    const userConfiguredModel = settings.model && !settings.model.includes('3.5') ? settings.model.trim() : null;
+    const modelCandidates = userConfiguredModel
+      ? [userConfiguredModel, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+      : ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const modelsToTry = Array.from(new Set(modelCandidates));
 
     // Filter out incomingMessage if it is already recorded at the end of history to prevent duplicate prompt input
     const historyWithoutIncoming = (history.length > 0 && history[history.length - 1].sender === 'user' && history[history.length - 1].message === incomingMessage)
@@ -84,62 +105,40 @@ export class AIService {
       parts: userParts
     });
 
-    // Dynamic token ceiling matching user's message length for balanced variety
-    const userWords = incomingMessage.trim().split(/\s+/).filter(Boolean).length;
-    let maxOutputTokens = 260;
-    if (userWords <= 7) {
-      maxOutputTokens = 85; // Short 1-liner
-    } else if (userWords <= 16) {
-      maxOutputTokens = 160; // 1-2 natural sentences
+    let lastError: any = null;
+    for (const model of modelsToTry) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents,
+          config: {
+            systemInstruction: systemPrompt,
+            temperature: 0.85,
+            maxOutputTokens: 600,
+          }
+        });
+
+        const rawReply = response.text?.trim() || "Hey... I got a little distracted, what did you just say? 💕";
+        const reply = cleanAIReply(rawReply);
+
+        // Attempt background memory extraction
+        const extractedMemory = await this.extractMemoryGemini(ai, model, incomingMessage);
+
+        return { reply, extractedMemory };
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`Gemini model ${model} failed, trying next candidate...`, err?.message || err);
+      }
     }
 
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents,
-        config: {
-          systemInstruction: systemPrompt,
-          temperature: 0.85,
-          maxOutputTokens,
-        }
-      });
-
-      const reply = response.text?.trim() || "Hey... I got a little distracted, what did you just say? 💕";
-
-      // Attempt light background memory extraction if user shared something personal
-      const extractedMemory = await this.extractMemoryGemini(ai, modelName, incomingMessage);
-
-      return { reply, extractedMemory };
-    } catch (error: any) {
-      console.warn(`Gemini (${modelName}) attempt failed, trying fallback to gemini-3.5-flash-lite...`, error?.message);
-      if (modelName !== 'gemini-3.5-flash-lite') {
-        try {
-          const fallbackRes = await ai.models.generateContent({
-            model: 'gemini-3.5-flash-lite',
-            contents,
-            config: {
-              systemInstruction: systemPrompt,
-              temperature: 0.85,
-              maxOutputTokens,
-            }
-          });
-          const reply = fallbackRes.text?.trim() || "Hey... I got a little distracted, what did you just say? 💕";
-          const extractedMemory = await this.extractMemoryGemini(ai, 'gemini-3.5-flash-lite', incomingMessage);
-          return { reply, extractedMemory };
-        } catch (fallbackErr: any) {
-          console.error("Gemini Fallback Error:", fallbackErr);
-        }
-      }
-
-      console.error("Gemini API Error:", error);
-      if (error?.status === 400 || error?.message?.includes("API_KEY_INVALID") || error?.message?.includes("API key not valid")) {
-        const err: any = new Error("INVALID_API_KEY");
-        err.code = "INVALID_API_KEY";
-        err.message = "The provided Gemini API key appears invalid or expired. Please check your key in Settings.";
-        throw err;
-      }
-      throw error;
+    console.error("All Gemini model attempts failed:", lastError);
+    if (lastError?.status === 400 || lastError?.message?.includes("API_KEY_INVALID") || lastError?.message?.includes("API key not valid")) {
+      const err: any = new Error("INVALID_API_KEY");
+      err.code = "INVALID_API_KEY";
+      err.message = "The provided Gemini API key appears invalid or expired. Please check your key in Settings.";
+      throw err;
     }
+    throw lastError;
   }
 
   /**
@@ -185,14 +184,6 @@ export class AIService {
       content: incomingMessage
     });
 
-    const userWords = incomingMessage.trim().split(/\s+/).filter(Boolean).length;
-    let max_tokens = 260;
-    if (userWords <= 7) {
-      max_tokens = 85;
-    } else if (userWords <= 16) {
-      max_tokens = 160;
-    }
-
     const res = await fetch(baseUrl, {
       method: 'POST',
       headers: {
@@ -203,7 +194,7 @@ export class AIService {
         model,
         messages,
         temperature: 0.85,
-        max_tokens
+        max_tokens: 600
       })
     });
 
@@ -274,25 +265,24 @@ Do not include markdown or backticks.`;
     try {
       if (provider === 'gemini') {
         const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-        let textResult = '';
-        try {
-          const res = await ai.models.generateContent({
-            model: 'gemini-3.5-flash',
-            contents: [{ role: 'user', parts: [{ text: 'Respond with the word OK.' }] }],
-            config: { maxOutputTokens: 100 }
-          });
-          textResult = res.text || '';
-        } catch {
-          const res2 = await ai.models.generateContent({
-            model: 'gemini-3.5-flash-lite',
-            contents: [{ role: 'user', parts: [{ text: 'Respond with the word OK.' }] }],
-            config: { maxOutputTokens: 100 }
-          });
-          textResult = res2.text || '';
+        const modelsToTest = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+        let lastErr: any = null;
+
+        for (const m of modelsToTest) {
+          try {
+            const res = await ai.models.generateContent({
+              model: m,
+              contents: [{ role: 'user', parts: [{ text: 'Respond with the word OK.' }] }],
+              config: { maxOutputTokens: 50 }
+            });
+            if (res.text) {
+              return { success: true, message: `Gemini API key verified successfully (${m})! Your AI Girlfriend is ready.` };
+            }
+          } catch (testErr) {
+            lastErr = testErr;
+          }
         }
-        if (textResult) {
-          return { success: true, message: 'Gemini API key verified successfully! Your AI Girlfriend is ready.' };
-        }
+        return { success: false, message: lastErr?.message || 'Could not verify Gemini API key with available models.' };
       } else {
         // OpenAI / Groq quick check
         const res = await fetch('https://api.openai.com/v1/models', {
@@ -304,7 +294,6 @@ Do not include markdown or backticks.`;
           return { success: false, message: `Verification failed with HTTP ${res.status}. Check your key.` };
         }
       }
-      return { success: false, message: 'Could not verify API key.' };
     } catch (err: any) {
       return { success: false, message: err?.message || 'API key verification failed.' };
     }
@@ -319,20 +308,32 @@ Do not include markdown or backticks.`;
 
     try {
       const ai = new GoogleGenAI({ apiKey });
-      const prompt = `You are ${character.name}, texting your partner out of the blue on WhatsApp.
+      const prompt = `You are ${character.name}, texting your partner out of the blue on Instagram DMs.
 Personality: ${character.personality.join(', ')}
 Language: ${character.communication_preferences.language}
 Backstory: ${character.backstory}
-Write ONE short spontaneous WhatsApp text checking in on them or sharing what you are doing right now.
-Keep it under 2 sentences. Natural, warm, and authentic. No quotes.`;
+Write ONE short spontaneous text checking in on them or sharing what you are doing right now.
+Keep it under 2 sentences. Natural, warm, and authentic. No quotes, no 'Name:' prefix.`;
 
-      const res = await ai.models.generateContent({
-        model: settings.model && settings.model !== 'gemini-1.5-flash' ? settings.model : 'gemini-3.5-flash',
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { temperature: 0.9, maxOutputTokens: 80 }
-      });
+      const candidateModels = settings.model && !settings.model.includes('3.5')
+        ? [settings.model, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+        : ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
-      return res.text?.trim() || `Hey! Just wanted to see what you're up to right now 💕`;
+      for (const m of candidateModels) {
+        try {
+          const res = await ai.models.generateContent({
+            model: m,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { temperature: 0.9, maxOutputTokens: 250 }
+          });
+          const text = cleanAIReply(res.text || '', character.name);
+          if (text) return text;
+        } catch {
+          // try next model
+        }
+      }
+
+      return `Hey! Just wanted to see what you're up to right now 💕`;
     } catch {
       return `Hey! Just wanted to see what you're up to right now 💕`;
     }
