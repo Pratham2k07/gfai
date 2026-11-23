@@ -11,7 +11,7 @@
     "dev:server": "npm run dev --workspace=server",
     "dev:client": "npm run dev --workspace=client",
     "dev:split": "concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
-    "build": "npm run bundle:api && npm run build --workspace=client",
+    "build": "npm run bundle:api && npm run build --workspace=client && node -e \"import('fs').then(fs => { if(fs.existsSync('dist')) { fs.mkdirSync('client/dist', { recursive: true }); fs.cpSync('dist', 'client/dist', { recursive: true }); } })\"",
     "bundle:api": "esbuild server/src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=api/index.js",
     "build:server": "npm run build --workspace=server",
     "start": "npm run start --workspace=server"
