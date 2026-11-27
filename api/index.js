@@ -303,22 +303,10 @@ var Database = class {
       return this.cache;
     } catch {
       const initialDb = {
-        users: [
-          {
-            id: "user-default",
-            email: "user@aicompanion.local",
-            name: "Alex",
-            created_at: (/* @__PURE__ */ new Date()).toISOString(),
-            preferences: {
-              theme: "dark",
-              sound_enabled: true,
-              proactive_enabled: true
-            }
-          }
-        ],
-        characters: SEED_CHARACTERS,
-        messages: SEED_MESSAGES,
-        memories: SEED_MEMORIES,
+        users: [],
+        characters: [],
+        messages: [],
+        memories: [],
         settings: DEFAULT_SETTINGS
       };
       try {

@@ -148,14 +148,10 @@ export async function fetchCharacters(): Promise<Character[]> {
       }
     }
   } catch (err) {
-    console.warn('fetchCharacters API unavailable, using cached/seed companions:', err);
+    console.warn('fetchCharacters API unavailable, using locally cached companions:', err);
   }
 
-  const stored = getStoredCharacters();
-  if (stored.length > 0) return stored;
-
-  saveCharactersLocally(DEFAULT_SEED_CHARACTERS);
-  return DEFAULT_SEED_CHARACTERS;
+  return getStoredCharacters();
 }
 
 export async function fetchCharacter(id: string): Promise<Character> {
@@ -164,7 +160,7 @@ export async function fetchCharacter(id: string): Promise<Character> {
     if (res.ok) return await res.json();
   } catch {}
   const all = getStoredCharacters();
-  const match = all.find(c => c.id === id) || DEFAULT_SEED_CHARACTERS.find(c => c.id === id);
+  const match = all.find(c => c.id === id);
   if (match) return match;
   throw new Error('Character not found');
 }
@@ -173,7 +169,7 @@ export async function createCharacter(character: Partial<Character>): Promise<Ch
   const fallbackId = `char-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
   const cleanName = character.name?.trim() || 'Girlfriend';
   const cleanHandle = character.handle?.trim() || cleanName.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'companion';
-  const cleanAvatar = character.avatar?.trim() || DEFAULT_SEED_CHARACTERS[0].avatar;
+  const cleanAvatar = character.avatar?.trim() || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80';
   const cleanIntro = character.introduction?.trim() || `Hey! So glad we finally matched on Instagram. How is your day going? 💕`;
   const cleanBackstory = character.backstory?.trim() || `${cleanName} is an expressive, loving companion who enjoys chatting with you in Instagram DMs.`;
 

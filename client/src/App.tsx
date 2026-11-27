@@ -5,7 +5,7 @@ import { LandingPage } from './components/LandingPage';
 import { ChatInterface } from './components/ChatInterface';
 import { CharacterCreator } from './components/CharacterCreator';
 import { SettingsModal } from './components/SettingsModal';
-import { AccountModal, DEMO_RETURNING_USER } from './components/AccountModal';
+import { AccountModal } from './components/AccountModal';
 import { soundFX } from './utils/audio';
 
 export const App: React.FC = () => {
@@ -20,8 +20,7 @@ export const App: React.FC = () => {
     } catch (e) {
       console.error(e);
     }
-    // Default to Alex for immediate exploration, or null
-    return DEMO_RETURNING_USER;
+    return null;
   });
   const [showAccountModal, setShowAccountModal] = useState<boolean>(false);
   const [settings, setSettings] = useState<AppSettings>({
