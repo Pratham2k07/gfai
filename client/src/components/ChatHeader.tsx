@@ -17,6 +17,8 @@ interface ChatHeaderProps {
   pendingReply?: PendingReplyInfo | null;
   onSkipDelay?: () => void;
   isSkipping?: boolean;
+  realisticDelays: boolean;
+  onToggleRealisticDelays: () => void;
   onBack?: () => void;
   onOpenProfile: () => void;
   onOpenMemories?: () => void;
@@ -40,6 +42,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   pendingReply,
   onSkipDelay,
   isSkipping = false,
+  realisticDelays,
+  onToggleRealisticDelays,
   onBack,
   onOpenProfile,
   onOpenMemories,
@@ -108,8 +112,34 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         </div>
       </div>
 
-      {/* Center/Right: Pending Status Chip & Quick Skip for Testing */}
-      <div className="flex items-center gap-1 sm:gap-3">
+      {/* Center/Right: Reply Speed Mode Toggle, Pending Status Chip & Actions */}
+      <div className="flex items-center gap-1 sm:gap-2.5">
+        <button
+          onClick={onToggleRealisticDelays}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all active:scale-95 ${
+            realisticDelays
+              ? theme === 'dark'
+                ? 'bg-purple-500/15 border-purple-500/30 text-purple-300 hover:bg-purple-500/25'
+                : 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100'
+              : theme === 'dark'
+              ? 'bg-pink-500/15 border-pink-500/30 text-pink-300 hover:bg-pink-500/25'
+              : 'bg-pink-50 border-pink-200 text-pink-700 hover:bg-pink-100'
+          }`}
+          title={realisticDelays ? 'Real Conversation Time (click to switch to Instant Reply)' : 'Instant Reply (click to switch to Real Conversation Time)'}
+        >
+          {realisticDelays ? (
+            <>
+              <Clock className="w-3 h-3" />
+              <span className="hidden sm:inline">Real Time</span>
+            </>
+          ) : (
+            <>
+              <Zap className="w-3 h-3" />
+              <span className="hidden sm:inline">Instant</span>
+            </>
+          )}
+        </button>
+
         {pendingReply && (
           <div className="flex items-center gap-1.5 bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-full text-xs">
             <span className="text-purple-300 font-medium text-[11px]">

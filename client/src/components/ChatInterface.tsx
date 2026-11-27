@@ -29,7 +29,8 @@ import {
   triggerProactiveMessage, 
   toggleMessageLike,
   skipReplyDelay,
-  fetchAllPendingReplies
+  fetchAllPendingReplies,
+  updateSettings
 } from '../services/api';
 import { soundFX } from '../utils/audio';
 
@@ -41,6 +42,7 @@ interface ChatInterfaceProps {
   onOpenSettings: () => void;
   onCharactersUpdated: (chars: Character[]) => void;
   settings: AppSettings;
+  onSettingsUpdated?: (settings: AppSettings) => void;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
   onNavigateDiscover?: () => void;
@@ -69,6 +71,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onOpenSettings,
   onCharactersUpdated,
   settings,
+  onSettingsUpdated,
   theme,
   onToggleTheme,
   onNavigateDiscover,
@@ -82,6 +85,88 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [isSkipping, setIsSkipping] = useState<boolean>(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  const [realisticDelays, setRealisticDelays] = useState<boolean>(settings.realisticDelays !== false);
+  const deferredRepliesRef = useRef<Record<string, {
+    aiMessage: Message;
+    newMemory?: Memory;
+    relationshipUpdate?: { level: number; title: string; xp: number; leveledUp: boolean };
+    timer: ReturnType<typeof setTimeout>;
+  }>>({});
+
+  useEffect(() => {
+    setRealisticDelays(settings.realisticDelays !== false);
+  }, [settings.realisticDelays]);
+
+  const handleToggleRealisticDelays = async () => {
+    const nextVal = !realisticDelays;
+    setRealisticDelays(nextVal);
+    try {
+      const updated = await updateSettings({ realisticDelays: nextVal });
+      onSettingsUpdated?.(updated);
+    } catch {
+      onSettingsUpdated?.({ ...settings, realisticDelays: nextVal });
+    }
+  };
+
+  const revealDeferredReply = (charId: string) => {
+    const deferred = deferredRepliesRef.current[charId];
+    if (!deferred) return false;
+    clearTimeout(deferred.timer);
+    delete deferredRepliesRef.current[charId];
+
+    setMessagesMap(prev => {
+      const currentList = prev[charId] || [];
+      if (currentList.some(m => m.id === deferred.aiMessage.id)) return prev;
+      return {
+        ...prev,
+        [charId]: dedupeMessages([...currentList, deferred.aiMessage])
+      };
+    });
+
+    try {
+      const raw = localStorage.getItem(`velora_msgs_${charId}`);
+      const existing: Message[] = raw ? JSON.parse(raw) : [];
+      if (!existing.some(m => m.id === deferred.aiMessage.id)) {
+        existing.push(deferred.aiMessage);
+        localStorage.setItem(`velora_msgs_${charId}`, JSON.stringify(existing));
+      }
+    } catch {}
+
+    soundFX.playReceived();
+    setPendingReplies(prev => {
+      if (!prev[charId]) return prev;
+      const next = { ...prev };
+      delete next[charId];
+      return next;
+    });
+    setIsTyping(false);
+
+    if (deferred.newMemory) {
+      setMemoriesMap(prev => ({
+        ...prev,
+        [charId]: [deferred.newMemory!, ...(prev[charId] || [])]
+      }));
+    }
+
+    if (deferred.relationshipUpdate) {
+      if (deferred.relationshipUpdate.leveledUp) {
+        soundFX.playLevelUp();
+      }
+      onCharactersUpdated(
+        characters.map(c =>
+          c.id === charId
+            ? {
+                ...c,
+                relationship_level: deferred.relationshipUpdate!.level,
+                relationship_title: deferred.relationshipUpdate!.title,
+                xp: deferred.relationshipUpdate!.xp
+              }
+            : c
+        )
+      );
+    }
+    return true;
+  };
 
   // Modals state
   const [showMemories, setShowMemories] = useState(false);
@@ -217,6 +302,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const pollInterval = hasActivePending ? 2500 : 7000;
 
     const interval = setInterval(async () => {
+      if (deferredRepliesRef.current[activeCharacter.id]) return;
       try {
         const msgs = await fetchMessages(activeCharacter.id);
         if (msgs && msgs.length > 0) {
@@ -279,15 +365,58 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }));
 
     try {
-      const response = await sendMessage(activeCharacter.id, {
+      const targetCharId = activeCharacter.id;
+      const response = await sendMessage(targetCharId, {
         message: text,
         media_url: mediaUrl,
         media_type: mediaType,
-        clientHour: new Date().getHours()
+        clientHour: new Date().getHours(),
+        forceInstant: !realisticDelays
       });
 
-      // If server scheduled a realistic delay
-      if (response.pendingReply) {
+      // If serverless returned a deferred reply for client-side realistic conversation time
+      if (response.deferredReply) {
+        const def = response.deferredReply;
+        setMessagesMap(prev => {
+          const filtered = (prev[targetCharId] || []).filter(m => m.id !== tempUserMsg.id);
+          return {
+            ...prev,
+            [targetCharId]: dedupeMessages([...filtered, response.userMessage])
+          };
+        });
+
+        const typingWindow = def.seenTypingSeconds || 6;
+        const delaySeconds = Math.max(1, Math.round(def.delayMs / 1000));
+        setPendingReplies(prev => ({
+          ...prev,
+          [targetCharId]: {
+            characterId: targetCharId,
+            scheduledAt: Date.now() + def.delayMs,
+            delaySeconds,
+            remainingSeconds: delaySeconds,
+            seenTypingSeconds: typingWindow,
+            bucket: def.bucket as any,
+            isNight: def.isNight,
+            isTyping: delaySeconds <= typingWindow,
+            isSeen: delaySeconds <= typingWindow
+          }
+        }));
+        setIsTyping(delaySeconds <= typingWindow);
+
+        if (deferredRepliesRef.current[targetCharId]) {
+          clearTimeout(deferredRepliesRef.current[targetCharId].timer);
+        }
+        const timer = setTimeout(() => {
+          revealDeferredReply(targetCharId);
+        }, def.delayMs);
+
+        deferredRepliesRef.current[targetCharId] = {
+          aiMessage: def.aiMessage,
+          newMemory: def.newMemory,
+          relationshipUpdate: def.relationshipUpdate,
+          timer
+        };
+      } else if (response.pendingReply) {
         setPendingReplies(prev => ({
           ...prev,
           [activeCharacter.id]: response.pendingReply!
@@ -355,6 +484,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const handleSkipDelay = async () => {
     if (!activeCharacter || isSkipping) return;
+    if (revealDeferredReply(activeCharacter.id)) {
+      return;
+    }
     setIsSkipping(true);
     try {
       // Clear pending delay banner immediately for responsive UI
@@ -591,6 +723,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               pendingReply={activePendingReply}
               onSkipDelay={handleSkipDelay}
               isSkipping={isSkipping}
+              realisticDelays={realisticDelays}
+              onToggleRealisticDelays={handleToggleRealisticDelays}
               onBack={() => setMobileShowChat(false)}
               onOpenProfile={() => setShowProfile(true)}
               onOpenMemories={() => setShowMemories(true)}

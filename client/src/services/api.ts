@@ -350,6 +350,15 @@ export async function sendMessage(
   userMessage: Message;
   aiMessage?: Message;
   pendingReply?: PendingReplyInfo;
+  deferredReply?: {
+    aiMessage: Message;
+    newMemory?: Memory;
+    relationshipUpdate?: { level: number; title: string; xp: number; leveledUp: boolean };
+    delayMs: number;
+    seenTypingSeconds: number;
+    bucket: string;
+    isNight: boolean;
+  };
   newMemory?: Memory;
   relationshipUpdate?: { level: number; title: string; xp: number; leveledUp: boolean };
 }> {

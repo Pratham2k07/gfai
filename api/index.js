@@ -1397,9 +1397,8 @@ app.post("/api/characters/:id/messages", async (req, res) => {
     });
     const settings = await db.getSettings();
     const isServerless = Boolean(process.env.VERCEL);
-    const shouldReplyImmediately = Boolean(forceInstant) || isServerless;
-    const useRealisticDelays = settings.realisticDelays !== false && !shouldReplyImmediately;
-    if (shouldReplyImmediately) {
+    const useRealisticDelays = settings.realisticDelays !== false && !forceInstant;
+    if (!useRealisticDelays) {
       try {
         const replyResult = await generateAndSaveCompanionReply(characterId, media_url, character, bodyHistory);
         await db.updateMessageStatus(userMsg.id, "read");
@@ -1427,6 +1426,35 @@ app.post("/api/characters/:id/messages", async (req, res) => {
           message: aiErr.message || "Failed to generate AI companion response.",
           userMessage: userMsg
         });
+      }
+    }
+    if (isServerless) {
+      try {
+        const replyResult = await generateAndSaveCompanionReply(characterId, media_url, character, bodyHistory);
+        const wordCount2 = (replyResult.aiMessage?.message || "").trim().split(/\s+/).filter(Boolean).length;
+        const { delayMs: delayMs2, seenTypingSeconds: seenTypingSeconds2, bucket: bucket2, isNight: isNight2 } = calculateReplyDelay({
+          clientHour: typeof clientHour === "number" ? clientHour : void 0,
+          realisticDelaysEnabled: true,
+          wordCount: wordCount2
+        });
+        return res.json({
+          userMessage: userMsg,
+          deferredReply: {
+            ...replyResult,
+            delayMs: delayMs2,
+            seenTypingSeconds: seenTypingSeconds2,
+            bucket: bucket2,
+            isNight: isNight2
+          }
+        });
+      } catch (aiErr) {
+        if (aiErr.code === "NO_API_KEY") {
+          return res.status(400).json({ error: "NO_API_KEY", message: aiErr.message, userMessage: userMsg });
+        }
+        if (aiErr.code === "INVALID_API_KEY") {
+          return res.status(401).json({ error: "INVALID_API_KEY", message: aiErr.message, userMessage: userMsg });
+        }
+        return res.status(500).json({ error: "AI_ERROR", message: aiErr.message || "Failed to generate AI companion response.", userMessage: userMsg });
       }
     }
     const [memories, history] = await Promise.all([

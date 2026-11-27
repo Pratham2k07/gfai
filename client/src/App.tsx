@@ -197,6 +197,7 @@ export const App: React.FC = () => {
           onOpenSettings={() => setShowSettings(true)}
           onCharactersUpdated={(chars) => setCharacters(chars)}
           settings={settings}
+          onSettingsUpdated={(updated) => setSettings(updated)}
           theme={theme}
           onToggleTheme={handleToggleTheme}
           onNavigateDiscover={() => setView('landing')}

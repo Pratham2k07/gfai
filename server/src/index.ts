@@ -362,13 +362,11 @@ app.post('/api/characters/:id/messages', async (req: Request, res: Response) => 
 
     const settings = await db.getSettings();
 
-    // On Vercel serverless, background setTimeout timers do not survive after response is sent, so always reply directly
     const isServerless = Boolean(process.env.VERCEL);
-    const shouldReplyImmediately = Boolean(forceInstant) || isServerless;
-    const useRealisticDelays = settings.realisticDelays !== false && !shouldReplyImmediately;
+    const useRealisticDelays = settings.realisticDelays !== false && !forceInstant;
 
-    if (shouldReplyImmediately) {
-      // Immediate reply generation
+    if (!useRealisticDelays) {
+      // Immediate reply generation (Instant Reply mode)
       try {
         const replyResult = await generateAndSaveCompanionReply(characterId, media_url, character, bodyHistory);
         await db.updateMessageStatus(userMsg.id, 'read');
@@ -396,6 +394,37 @@ app.post('/api/characters/:id/messages', async (req: Request, res: Response) => 
           message: aiErr.message || 'Failed to generate AI companion response.',
           userMessage: userMsg
         });
+      }
+    }
+
+    if (isServerless) {
+      // On Vercel serverless, return the generated reply along with realistic delay timings so the client handles the countdown reliably
+      try {
+        const replyResult = await generateAndSaveCompanionReply(characterId, media_url, character, bodyHistory);
+        const wordCount = (replyResult.aiMessage?.message || '').trim().split(/\s+/).filter(Boolean).length;
+        const { delayMs, seenTypingSeconds, bucket, isNight } = calculateReplyDelay({
+          clientHour: typeof clientHour === 'number' ? clientHour : undefined,
+          realisticDelaysEnabled: true,
+          wordCount
+        });
+        return res.json({
+          userMessage: userMsg,
+          deferredReply: {
+            ...replyResult,
+            delayMs,
+            seenTypingSeconds,
+            bucket,
+            isNight
+          }
+        });
+      } catch (aiErr: any) {
+        if (aiErr.code === 'NO_API_KEY') {
+          return res.status(400).json({ error: 'NO_API_KEY', message: aiErr.message, userMessage: userMsg });
+        }
+        if (aiErr.code === 'INVALID_API_KEY') {
+          return res.status(401).json({ error: 'INVALID_API_KEY', message: aiErr.message, userMessage: userMsg });
+        }
+        return res.status(500).json({ error: 'AI_ERROR', message: aiErr.message || 'Failed to generate AI companion response.', userMessage: userMsg });
       }
     }
 
