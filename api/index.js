@@ -1112,7 +1112,7 @@ app.use((req, res, next) => {
 app.get("/api", (req, res) => {
   res.json({
     status: "ok",
-    message: "VELORA AI Companion API running",
+    message: "OnlyHer AI Companion API running",
     timestamp: (/* @__PURE__ */ new Date()).toISOString()
   });
 });
@@ -1616,7 +1616,7 @@ if (!process.env.VERCEL) {
     res.sendFile(path2.join(clientDist, "index.html"));
   });
   server.listen(PORT, () => {
-    console.log(`\u{1F680} VELORA AI Companion running at http://localhost:${PORT}`);
+    console.log(`\u{1F680} OnlyHer AI Companion running at http://localhost:${PORT}`);
   });
 } else {
   app.use((req, res) => {

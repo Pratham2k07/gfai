@@ -42,7 +42,7 @@ export const DEMO_RETURNING_USER: User = {
   id: 'user-alex',
   name: 'Alex Rivera',
   handle: 'alex',
-  email: 'alex@velora.direct',
+  email: 'alex@onlyher.direct',
   avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
   created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
   isNewUser: false,
@@ -53,11 +53,11 @@ export const DEMO_NEW_USER: User = {
   id: 'user-new',
   name: 'Taylor Swiftly',
   handle: 'taylor_new',
-  email: 'taylor@velora.direct',
+  email: 'taylor@onlyher.direct',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
   created_at: new Date().toISOString(),
   isNewUser: true,
-  bio: 'Just joined VELORA! Ready to create my first companion.'
+  bio: 'Just joined OnlyHer! Ready to create my first companion.'
 };
 
 export const AccountModal: React.FC<AccountModalProps> = ({
@@ -97,7 +97,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
         id: `user-${Date.now().toString(36)}`,
         name: nameInput.trim() || 'New Member',
         handle: handleInput.trim().replace(/^@/, '') || `user_${Math.floor(Math.random() * 8999 + 1000)}`,
-        email: emailInput.trim() || 'user@velora.direct',
+        email: emailInput.trim() || 'user@onlyher.direct',
         avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
         created_at: new Date().toISOString(),
         isNewUser: true
@@ -110,7 +110,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
         id: `user-${Date.now().toString(36)}`,
         name: nameInput.trim() || (emailInput.includes('@') ? emailInput.split('@')[0] : 'Member'),
         handle: handleInput.trim().replace(/^@/, '') || (emailInput ? emailInput.split('@')[0] : 'member'),
-        email: emailInput.trim() || 'member@velora.direct',
+        email: emailInput.trim() || 'member@onlyher.direct',
         avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80',
         created_at: new Date(Date.now() - 86400000 * 14).toISOString(),
         isNewUser: false
@@ -150,7 +150,10 @@ export const AccountModal: React.FC<AccountModalProps> = ({
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full velora-story-ring p-[2px] flex items-center justify-center">
               <div className="w-full h-full bg-black rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-black">V</span>
+                <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20.5s-6.8-4.2-9.2-8.8C1 8.3 3 4.5 6.8 4.5c2.1 0 3.9 1.1 5.2 2.8 1.3-1.7 3.1-2.8 5.2-2.8 3.8 0 5.8 3.8 4 7.2-2.4 4.6-9.2 8.8-9.2 8.8z" />
+                  <circle cx="12" cy="11.5" r="1.8" fill="currentColor" stroke="none" />
+                </svg>
               </div>
             </div>
             <div>
@@ -158,7 +161,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 {showAuthView ? 'Account Access' : 'My Account'}
               </span>
               <span className="block text-[10px] text-zinc-400">
-                VELORA Direct • 18+ Private
+                OnlyHer Direct • 18+ Private
               </span>
             </div>
           </div>
@@ -182,7 +185,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
               {/* Intro Banner */}
               <div className="text-center space-y-1.5">
                 <h3 className="text-2xl font-black text-white font-display tracking-tight">
-                  {authMode === 'login' ? 'Welcome Back.' : 'Join VELORA Direct.'}
+                  {authMode === 'login' ? 'Welcome Back.' : 'Join OnlyHer Direct.'}
                 </h3>
                 <p className="text-xs text-zinc-400 max-w-sm mx-auto leading-relaxed">
                   {authMode === 'login' 

@@ -97,7 +97,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           <div className="flex flex-col text-left">
             <div className="flex items-center gap-1">
               <span className="font-extrabold text-sm tracking-tight group-hover:text-[#FF6E5A] transition-colors">
-                {currentUser?.handle ? `@${currentUser.handle}` : 'velora.direct'}
+                {currentUser?.handle ? `@${currentUser.handle}` : 'onlyher.direct'}
               </span>
               <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-white transition-colors" />
             </div>

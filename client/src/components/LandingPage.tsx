@@ -243,23 +243,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           ========================================================================= */}
       <header className="fixed top-4 sm:top-5 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl z-50 transition-all">
         <div className="relative rounded-full border border-white/[0.12] bg-[#0c0c0e]/80 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.12)] px-4 sm:px-6 h-14 sm:h-15 flex items-center justify-between">
-          {/* Left: VELORA Brand Logo & Wordmark */}
+          {/* Left: OnlyHer Brand Logo & Wordmark */}
           <div 
             onClick={() => onOpenChat()} 
             className="flex items-center gap-3 cursor-pointer group select-none"
           >
-            {/* Instagram-inspired Circular Gradient Emblem */}
+            {/* OnlyHer Circular Gradient Emblem */}
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full velora-story-ring p-[2px] shadow-sm flex items-center justify-center transition-transform group-hover:scale-105 duration-300">
               <div className="w-full h-full bg-[#000000] rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 4l8 16 8-16" />
+                <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20.5s-6.8-4.2-9.2-8.8C1 8.3 3 4.5 6.8 4.5c2.1 0 3.9 1.1 5.2 2.8 1.3-1.7 3.1-2.8 5.2-2.8 3.8 0 5.8 3.8 4 7.2-2.4 4.6-9.2 8.8-9.2 8.8z" />
+                  <circle cx="12" cy="11.5" r="1.8" fill="currentColor" stroke="none" />
                 </svg>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base sm:text-lg tracking-[0.12em] text-[#FFFFFF] uppercase">
-                VELORA
+              <span className="font-extrabold text-base sm:text-lg tracking-[0.06em] text-[#FFFFFF]">
+                OnlyHer
               </span>
               <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-white/[0.06] border border-white/10 text-white/60">
                 Direct
@@ -1307,8 +1308,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
 
           <div className="mt-14 pt-8 border-t border-[#292929]/50 flex flex-col items-center">
-            <span className="font-extrabold text-2xl tracking-[0.1em] text-white uppercase">
-              VELORA
+            <span className="font-extrabold text-2xl tracking-[0.06em] text-white">
+              OnlyHer
             </span>
             <span className="text-xs text-[#71717A] tracking-wider mt-1">
               Your world. Your connection.
@@ -1326,7 +1327,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <span className="font-bold text-white px-2 py-0.5 rounded bg-[#151515] border border-[#292929]">
               18+
             </span>
-            <span>VELORA is an adult companion experience. All characters are fictional conversational simulations.</span>
+            <span>OnlyHer is an adult companion experience. All characters are fictional conversational simulations.</span>
           </div>
 
           <div className="flex items-center gap-6">

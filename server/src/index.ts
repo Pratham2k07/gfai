@@ -48,7 +48,7 @@ app.use((req: Request, res: Response, next) => {
 app.get('/api', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
-    message: 'VELORA AI Companion API running',
+    message: 'OnlyHer AI Companion API running',
     timestamp: new Date().toISOString()
   });
 });
@@ -642,7 +642,7 @@ if (!process.env.VERCEL) {
   });
 
   server.listen(PORT, () => {
-    console.log(`🚀 VELORA AI Companion running at http://localhost:${PORT}`);
+    console.log(`🚀 OnlyHer AI Companion running at http://localhost:${PORT}`);
   });
 } else {
   // On Vercel, static frontend is served by Vercel CDN; API handles unmapped routes

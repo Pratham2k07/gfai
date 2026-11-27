@@ -9,5 +9,6 @@
     </linearGradient>
   </defs>
   <circle cx="50" cy="50" r="48" fill="url(#g)"/>
-  <path d="M30 30 L50 72 L70 30" fill="none" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M50 78s-24-15-32-31c-6-12 1-25 14-25 7.5 0 14 4 18 10 4-6 10.5-10 18-10 13 0 20 13 14 25-8 16-32 31-32 31z" fill="none" stroke="white" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="50" cy="48" r="6" fill="white"/>
 </svg>
