@@ -19,7 +19,7 @@ var DB_FILE = path.join(DATA_DIR, "db.json");
 var DEFAULT_SETTINGS = {
   apiKey: "",
   apiProvider: "gemini",
-  model: "gemini-2.5-flash",
+  model: "gemini-3.8-flash",
   soundEnabled: true,
   theme: "dark",
   proactiveMessages: true,
@@ -672,8 +672,9 @@ var AIService = class {
    */
   async generateGemini(systemPrompt, history, incomingMessage, settings, apiKey, imageUrl) {
     const ai = new GoogleGenAI({ apiKey });
-    const userConfiguredModel = settings.model && !settings.model.includes("3.5") ? settings.model.trim() : null;
-    const modelCandidates = userConfiguredModel ? [userConfiguredModel, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"] : ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+    const deprecated = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash"];
+    const userConfiguredModel = settings.model && !deprecated.includes(settings.model.trim()) ? settings.model.trim() : null;
+    const modelCandidates = userConfiguredModel ? [userConfiguredModel, "gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"] : ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
     const modelsToTry = Array.from(new Set(modelCandidates));
     const historyWithoutIncoming = history.length > 0 && history[history.length - 1].sender === "user" && history[history.length - 1].message === incomingMessage ? history.slice(0, -1) : history;
     const recentHistory = historyWithoutIncoming.slice(-14);
@@ -821,7 +822,7 @@ Do not include markdown or backticks.`;
     try {
       if (provider === "gemini") {
         const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-        const modelsToTest = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+        const modelsToTest = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
         let lastErr = null;
         for (const m of modelsToTest) {
           try {
@@ -866,7 +867,8 @@ Language: ${character.communication_preferences.language}
 Backstory: ${character.backstory}
 Write ONE short spontaneous text checking in on them or sharing what you are doing right now.
 Keep it under 2 sentences. Natural, warm, and authentic. No quotes, no 'Name:' prefix.`;
-      const candidateModels = settings.model && !settings.model.includes("3.5") ? [settings.model, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"] : ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+      const deprecated = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash"];
+      const candidateModels = settings.model && !deprecated.includes(settings.model.trim()) ? [settings.model, "gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"] : ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
       for (const m of candidateModels) {
         try {
           const res = await ai.models.generateContent({

@@ -21,7 +21,7 @@ interface DatabaseSchema {
 const DEFAULT_SETTINGS: AppSettings = {
   apiKey: '',
   apiProvider: 'gemini',
-  model: 'gemini-2.5-flash',
+  model: 'gemini-3.8-flash',
   soundEnabled: true,
   theme: 'dark',
   proactiveMessages: true,

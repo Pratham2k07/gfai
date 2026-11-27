@@ -41,7 +41,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const [apiKey, setApiKey] = useState(settings.apiKey || '');
   const [provider, setProvider] = useState<'gemini' | 'openai' | 'groq' | 'openrouter'>(settings.apiProvider || 'gemini');
-  const [model, setModel] = useState(settings.model || 'gemini-1.5-flash');
+  const [model, setModel] = useState(settings.model || 'gemini-3.8-flash');
   const [soundEnabled, setSoundEnabled] = useState(settings.soundEnabled ?? true);
   const [proactiveMessages, setProactiveMessages] = useState(settings.proactiveMessages ?? true);
   const [realisticDelays, setRealisticDelays] = useState(settings.realisticDelays ?? true);
@@ -142,7 +142,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   type="button"
                   onClick={() => {
                     setProvider(p.id as any);
-                    if (p.id === 'gemini') setModel('gemini-1.5-flash');
+                    if (p.id === 'gemini') setModel('gemini-3.8-flash');
                     else if (p.id === 'groq') setModel('llama-3.3-70b-versatile');
                     else if (p.id === 'openai') setModel('gpt-4o-mini');
                   }}

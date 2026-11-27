@@ -27,7 +27,7 @@ export const App: React.FC = () => {
     apiKey: '',
     hasApiKey: false,
     apiProvider: 'gemini',
-    model: 'gemini-1.5-flash',
+    model: 'gemini-3.8-flash',
     soundEnabled: true,
     theme: 'dark',
     proactiveMessages: true,

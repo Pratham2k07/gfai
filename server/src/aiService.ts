@@ -72,10 +72,11 @@ export class AIService {
     const ai = new GoogleGenAI({ apiKey });
 
     // Candidate models to try in order of preference
-    const userConfiguredModel = settings.model && !settings.model.includes('3.5') ? settings.model.trim() : null;
+    const deprecated = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash'];
+    const userConfiguredModel = settings.model && !deprecated.includes(settings.model.trim()) ? settings.model.trim() : null;
     const modelCandidates = userConfiguredModel
-      ? [userConfiguredModel, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
-      : ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      ? [userConfiguredModel, 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest']
+      : ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
     const modelsToTry = Array.from(new Set(modelCandidates));
 
     // Filter out incomingMessage if it is already recorded at the end of history to prevent duplicate prompt input
@@ -265,7 +266,7 @@ Do not include markdown or backticks.`;
     try {
       if (provider === 'gemini') {
         const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-        const modelsToTest = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+        const modelsToTest = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
         let lastErr: any = null;
 
         for (const m of modelsToTest) {
@@ -315,9 +316,10 @@ Backstory: ${character.backstory}
 Write ONE short spontaneous text checking in on them or sharing what you are doing right now.
 Keep it under 2 sentences. Natural, warm, and authentic. No quotes, no 'Name:' prefix.`;
 
-      const candidateModels = settings.model && !settings.model.includes('3.5')
-        ? [settings.model, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
-        : ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      const deprecated = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash'];
+      const candidateModels = settings.model && !deprecated.includes(settings.model.trim())
+        ? [settings.model, 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest']
+        : ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
 
       for (const m of candidateModels) {
         try {
