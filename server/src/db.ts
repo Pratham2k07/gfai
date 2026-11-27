@@ -509,7 +509,10 @@ class Database {
     const db = await this.ensureInitialized();
     db.settings = { ...db.settings, ...settings };
     await this.save();
-    return db.settings;
+    return {
+      ...db.settings,
+      apiKey: db.settings.apiKey || process.env.GEMINI_API_KEY || ''
+    };
   }
 
   // --- Relationship Progression ---

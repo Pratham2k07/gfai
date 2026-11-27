@@ -482,7 +482,10 @@ var Database = class {
     const db2 = await this.ensureInitialized();
     db2.settings = { ...db2.settings, ...settings };
     await this.save();
-    return db2.settings;
+    return {
+      ...db2.settings,
+      apiKey: db2.settings.apiKey || process.env.GEMINI_API_KEY || ""
+    };
   }
   // --- Relationship Progression ---
   async recordConversationXP(characterId, addedXP = 25) {

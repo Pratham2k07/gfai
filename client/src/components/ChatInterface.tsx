@@ -101,11 +101,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleToggleRealisticDelays = async () => {
     const nextVal = !realisticDelays;
     setRealisticDelays(nextVal);
+    if (!nextVal && activeCharacter) {
+      revealDeferredReply(activeCharacter.id);
+    }
+    onSettingsUpdated?.({ ...settings, realisticDelays: nextVal });
     try {
       const updated = await updateSettings({ realisticDelays: nextVal });
-      onSettingsUpdated?.(updated);
+      onSettingsUpdated?.({
+        ...updated,
+        hasApiKey: Boolean(updated.hasApiKey || settings.hasApiKey)
+      });
     } catch {
-      onSettingsUpdated?.({ ...settings, realisticDelays: nextVal });
+      // Keep optimistic update
     }
   };
 
