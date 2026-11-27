@@ -327,6 +327,22 @@ export async function fetchMessages(characterId: string): Promise<Message[]> {
   return [];
 }
 
+function getCharacterContextPayload(characterId: string): { character?: Character; history?: Message[] } {
+  const storedChars = getStoredCharacters();
+  const character = storedChars.find(c => c.id === characterId);
+  let history: Message[] | undefined;
+  try {
+    const raw = localStorage.getItem(`velora_msgs_${characterId}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        history = parsed.slice(-14);
+      }
+    }
+  } catch {}
+  return { character, history };
+}
+
 export async function sendMessage(
   characterId: string,
   payload: { message?: string; media_url?: string; media_type?: 'image' | 'audio'; clientHour?: number; forceInstant?: boolean }
@@ -337,12 +353,15 @@ export async function sendMessage(
   newMemory?: Memory;
   relationshipUpdate?: { level: number; title: string; xp: number; leveledUp: boolean };
 }> {
+  const ctx = getCharacterContextPayload(characterId);
   const res = await fetch(`${API_BASE}/characters/${characterId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       ...payload,
-      clientHour: payload.clientHour ?? new Date().getHours()
+      clientHour: payload.clientHour ?? new Date().getHours(),
+      character: ctx.character,
+      history: ctx.history
     }),
   });
 
@@ -353,6 +372,19 @@ export async function sendMessage(
     error.userMessage = data.userMessage;
     throw error;
   }
+
+  // Persist messages locally for stateless serverless resilience
+  try {
+    const raw = localStorage.getItem(`velora_msgs_${characterId}`);
+    const existing: Message[] = raw ? JSON.parse(raw) : [];
+    const additions = [data.userMessage, data.aiMessage].filter(Boolean) as Message[];
+    const merged = [...existing];
+    for (const m of additions) {
+      if (!merged.some(em => em.id === m.id)) merged.push(m);
+    }
+    localStorage.setItem(`velora_msgs_${characterId}`, JSON.stringify(merged));
+  } catch {}
+
   return data;
 }
 
@@ -367,11 +399,28 @@ export async function skipReplyDelay(characterId: string): Promise<{
   newMemory?: Memory;
   relationshipUpdate?: { level: number; title: string; xp: number; leveledUp: boolean };
 }> {
+  const ctx = getCharacterContextPayload(characterId);
   const res = await fetch(`${API_BASE}/characters/${characterId}/skip-delay`, {
-    method: 'POST'
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      character: ctx.character,
+      history: ctx.history
+    })
   });
   if (!res.ok) throw new Error('Failed to skip delay');
-  return res.json();
+  const data = await res.json();
+  try {
+    if (data.aiMessage) {
+      const raw = localStorage.getItem(`velora_msgs_${characterId}`);
+      const existing: Message[] = raw ? JSON.parse(raw) : [];
+      if (!existing.some(em => em.id === data.aiMessage.id)) {
+        existing.push(data.aiMessage);
+        localStorage.setItem(`velora_msgs_${characterId}`, JSON.stringify(existing));
+      }
+    }
+  } catch {}
+  return data;
 }
 
 export async function fetchAllPendingReplies(): Promise<Record<string, PendingReplyInfo>> {
@@ -458,7 +507,12 @@ export async function testApiKey(apiKey: string, apiProvider: string): Promise<{
 }
 
 export async function triggerProactiveMessage(characterId: string): Promise<Message> {
-  const res = await fetch(`${API_BASE}/characters/${characterId}/proactive`, { method: 'POST' });
+  const ctx = getCharacterContextPayload(characterId);
+  const res = await fetch(`${API_BASE}/characters/${characterId}/proactive`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ character: ctx.character })
+  });
   if (!res.ok) throw new Error('Failed to trigger proactive message');
   return res.json();
 }

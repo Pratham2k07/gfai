@@ -378,6 +378,24 @@ var Database = class {
     await this.save();
     return db2.characters.length < prevLen;
   }
+  async upsertCharacter(char) {
+    const db2 = await this.ensureInitialized();
+    const idx = db2.characters.findIndex((c) => c.id === char.id);
+    if (idx !== -1) {
+      db2.characters[idx] = { ...db2.characters[idx], ...char, updated_at: (/* @__PURE__ */ new Date()).toISOString() };
+      await this.save();
+      return db2.characters[idx];
+    }
+    const hydrated = {
+      ...char,
+      user_id: char.user_id || "user-default",
+      created_at: char.created_at || (/* @__PURE__ */ new Date()).toISOString(),
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    db2.characters.push(hydrated);
+    await this.save();
+    return hydrated;
+  }
   // --- Messages ---
   async getMessages(characterId, limit = 100) {
     const db2 = await this.ensureInitialized();
@@ -1302,14 +1320,18 @@ app.get("/api/characters/:id/messages", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-async function generateAndSaveCompanionReply(characterId, mediaUrl) {
-  const character = await db.getCharacterById(characterId);
+async function generateAndSaveCompanionReply(characterId, mediaUrl, fallbackCharacter, fallbackHistory) {
+  let character = await db.getCharacterById(characterId);
+  if (!character && fallbackCharacter) {
+    character = await db.upsertCharacter(fallbackCharacter);
+  }
   if (!character) throw new Error("Character not found");
-  const [memories, history, settings] = await Promise.all([
+  const [memories, dbHistory, settings] = await Promise.all([
     db.getMemories(characterId),
     db.getMessages(characterId),
     db.getSettings()
   ]);
+  const history = dbHistory.length > 0 ? dbHistory : Array.isArray(fallbackHistory) ? fallbackHistory : [];
   const lastMsg = history[history.length - 1];
   if (lastMsg && lastMsg.sender === "girlfriend") {
     return {
@@ -1353,11 +1375,14 @@ async function generateAndSaveCompanionReply(characterId, mediaUrl) {
 app.post("/api/characters/:id/messages", async (req, res) => {
   try {
     const characterId = req.params.id;
-    const { message, media_url, media_type, clientHour, forceInstant } = req.body;
+    const { message, media_url, media_type, clientHour, forceInstant, character: bodyCharacter, history: bodyHistory } = req.body;
     if (!message && !media_url) {
       return res.status(400).json({ error: "Message text or media is required" });
     }
-    const character = await db.getCharacterById(characterId);
+    let character = await db.getCharacterById(characterId);
+    if (!character && bodyCharacter) {
+      character = await db.upsertCharacter({ ...bodyCharacter, id: characterId });
+    }
     if (!character) {
       return res.status(404).json({ error: "Character not found" });
     }
@@ -1371,10 +1396,12 @@ app.post("/api/characters/:id/messages", async (req, res) => {
       status: "delivered"
     });
     const settings = await db.getSettings();
-    const useRealisticDelays = settings.realisticDelays !== false && !forceInstant;
-    if (forceInstant) {
+    const isServerless = Boolean(process.env.VERCEL);
+    const shouldReplyImmediately = Boolean(forceInstant) || isServerless;
+    const useRealisticDelays = settings.realisticDelays !== false && !shouldReplyImmediately;
+    if (shouldReplyImmediately) {
       try {
-        const replyResult = await generateAndSaveCompanionReply(characterId, media_url);
+        const replyResult = await generateAndSaveCompanionReply(characterId, media_url, character, bodyHistory);
         await db.updateMessageStatus(userMsg.id, "read");
         return res.json({
           userMessage: userMsg,
@@ -1498,9 +1525,13 @@ app.get("/api/characters/:id/reply-status", async (req, res) => {
 app.post("/api/characters/:id/skip-delay", async (req, res) => {
   try {
     const characterId = req.params.id;
+    const { character: bodyCharacter, history: bodyHistory } = req.body || {};
+    if (bodyCharacter) {
+      await db.upsertCharacter({ ...bodyCharacter, id: characterId });
+    }
     const result = await replyScheduler.triggerImmediately(
       characterId,
-      () => generateAndSaveCompanionReply(characterId)
+      () => generateAndSaveCompanionReply(characterId, void 0, bodyCharacter, bodyHistory)
     );
     res.json(result || { success: true });
   } catch (err) {
@@ -1585,7 +1616,11 @@ app.delete("/api/characters/:id/memories/:memoryId", async (req, res) => {
 app.post("/api/characters/:id/proactive", async (req, res) => {
   try {
     const characterId = req.params.id;
-    const character = await db.getCharacterById(characterId);
+    const { character: bodyCharacter } = req.body || {};
+    let character = await db.getCharacterById(characterId);
+    if (!character && bodyCharacter) {
+      character = await db.upsertCharacter({ ...bodyCharacter, id: characterId });
+    }
     if (!character) {
       return res.status(404).json({ error: "Character not found" });
     }

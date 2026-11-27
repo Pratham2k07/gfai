@@ -393,6 +393,25 @@ class Database {
     return db.characters.length < prevLen;
   }
 
+  async upsertCharacter(char: Character): Promise<Character> {
+    const db = await this.ensureInitialized();
+    const idx = db.characters.findIndex(c => c.id === char.id);
+    if (idx !== -1) {
+      db.characters[idx] = { ...db.characters[idx], ...char, updated_at: new Date().toISOString() };
+      await this.save();
+      return db.characters[idx];
+    }
+    const hydrated: Character = {
+      ...char,
+      user_id: char.user_id || 'user-default',
+      created_at: char.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    db.characters.push(hydrated);
+    await this.save();
+    return hydrated;
+  }
+
   // --- Messages ---
   async getMessages(characterId: string, limit: number = 100): Promise<Message[]> {
     const db = await this.ensureInitialized();
