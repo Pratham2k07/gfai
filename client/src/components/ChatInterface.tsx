@@ -30,7 +30,8 @@ import {
   toggleMessageLike,
   skipReplyDelay,
   fetchAllPendingReplies,
-  updateSettings
+  updateSettings,
+  mergeMessageLists
 } from '../services/api';
 import { soundFX } from '../utils/audio';
 
@@ -306,20 +307,29 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       try {
         const msgs = await fetchMessages(activeCharacter.id);
         if (msgs && msgs.length > 0) {
+          let addedNewGirlfriendMsg = false;
           setMessagesMap(prev => {
             const currentList = prev[activeCharacter.id] || [];
-            if (msgs.length === currentList.length && msgs[msgs.length - 1]?.id === currentList[currentList.length - 1]?.id) {
+            // Preserve any in-flight temp message if server hasn't returned it yet
+            const hasTemp = currentList.some(m => m.id.startsWith('temp-'));
+            if (hasTemp) return prev;
+
+            const merged = mergeMessageLists(currentList, msgs);
+            if (merged.length === currentList.length && merged[merged.length - 1]?.id === currentList[currentList.length - 1]?.id) {
               return prev;
+            }
+            const prevLastId = currentList[currentList.length - 1]?.id;
+            const nextLast = merged[merged.length - 1];
+            if (nextLast && nextLast.id !== prevLastId && nextLast.sender === 'girlfriend') {
+              addedNewGirlfriendMsg = true;
             }
             return {
               ...prev,
-              [activeCharacter.id]: dedupeMessages(msgs)
+              [activeCharacter.id]: merged
             };
           });
 
-          const lastMsg = msgs[msgs.length - 1];
-          if (lastMsg && lastMsg.sender === 'girlfriend') {
-            // New message arrived from companion! Clear pending reply for this character
+          if (addedNewGirlfriendMsg) {
             setPendingReplies(prev => {
               if (!prev[activeCharacter.id]) return prev;
               const next = { ...prev };
@@ -329,7 +339,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             setIsTyping(false);
             soundFX.playReceived();
 
-            // Refresh memories
             fetchMemories(activeCharacter.id)
               .then(mems => setMemoriesMap(m => ({ ...m, [activeCharacter.id]: mems })))
               .catch(() => {});

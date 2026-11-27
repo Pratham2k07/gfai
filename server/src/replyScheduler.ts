@@ -20,18 +20,18 @@ export function calculateReplyDelay(options?: {
   // Typing duration based on word count:
   // "no instant reply like it should take typind time depending on the amount of words"
   // "if seen then within 10 seconds we need reply"
-  const count = typeof options?.wordCount === 'number' && options.wordCount > 0 ? options.wordCount : 18;
-  // Realistic mobile typing speed ~0.25s per word, bounded between 4s minimum and 10s maximum!
-  const seenTypingSeconds = Math.min(10, Math.max(4, Math.round(count * 0.25)));
+  const count = typeof options?.wordCount === 'number' && options.wordCount > 0 ? options.wordCount : 12;
+  // Snappy mobile typing speed ~0.15s per word, bounded between 2s minimum and 5s maximum
+  const seenTypingSeconds = Math.min(5, Math.max(2, Math.round(count * 0.15)));
   const seenTypingMs = seenTypingSeconds * 1000;
 
   if (options?.realisticDelaysEnabled === false) {
     return {
-      delayMs: seenTypingMs,
-      seenTypingSeconds,
+      delayMs: 0,
+      seenTypingSeconds: 0,
       bucket: 'instant',
       isNight: false,
-      description: `Realistic typing (${seenTypingSeconds}s)`
+      description: `Instant reply`
     };
   }
 
@@ -44,10 +44,9 @@ export function calculateReplyDelay(options?: {
   const isNight = hour >= 22 || hour < 6;
 
   if (isNight) {
-    // Night requirement: "instant to 15-20 seconds reply in night"
-    // Delivered for ~7-12s, then Seen + Typing for final 4-8s (within 10s max!)
-    const totalNightSec = Math.floor(Math.random() * (20 - 15 + 1)) + 15;
-    const delayMs = Math.max(seenTypingMs + 3000, totalNightSec * 1000);
+    // Night active chat: 4-7s total, typing in final 2-5s
+    const totalNightSec = Math.floor(Math.random() * (7 - 4 + 1)) + 4;
+    const delayMs = Math.max(seenTypingMs + 1000, totalNightSec * 1000);
     return {
       delayMs,
       seenTypingSeconds,
@@ -57,27 +56,26 @@ export function calculateReplyDelay(options?: {
     };
   }
 
-  // Daytime requirement: "and other and reverse in day just like a normal person"
-  // Day hours are slower because normal people are busy, capped at 2 minutes maximum
+  // Daytime realistic pacing: brisk 4-12s total
   const roll = Math.random();
   let totalDaySec: number;
   let bucket: DelayBucket;
 
-  if (roll < 0.25) {
-    // 25% chance: Quick reply (happened to check phone) -> 25 to 40 seconds
-    totalDaySec = Math.floor(Math.random() * (40 - 25 + 1)) + 25;
+  if (roll < 0.35) {
+    // 35% chance: Quick reply -> 4 to 6 seconds
+    totalDaySec = Math.floor(Math.random() * (6 - 4 + 1)) + 4;
     bucket = 'instant';
-  } else if (roll < 0.70) {
-    // 45% chance: Standard daytime gap -> 45 to 75 seconds (~1 min)
-    totalDaySec = Math.floor(Math.random() * (75 - 45 + 1)) + 45;
+  } else if (roll < 0.80) {
+    // 45% chance: Standard daytime gap -> 6 to 9 seconds
+    totalDaySec = Math.floor(Math.random() * (9 - 6 + 1)) + 6;
     bucket = 'medium';
   } else {
-    // 30% chance: Busy daytime gap -> 80 to 120 seconds (capped at 2 min max!)
-    totalDaySec = Math.floor(Math.random() * (120 - 80 + 1)) + 80;
+    // 20% chance: Slightly busy -> 9 to 12 seconds
+    totalDaySec = Math.floor(Math.random() * (12 - 9 + 1)) + 9;
     bucket = 'long';
   }
 
-  const delayMs = Math.max(seenTypingMs + 5000, totalDaySec * 1000);
+  const delayMs = Math.max(seenTypingMs + 1500, totalDaySec * 1000);
   return {
     delayMs,
     seenTypingSeconds,

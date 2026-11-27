@@ -302,29 +302,47 @@ export async function deleteCharacter(id: string): Promise<void> {
   } catch {}
 }
 
-export async function fetchMessages(characterId: string): Promise<Message[]> {
-  try {
-    const res = await fetch(`${API_BASE}/characters/${characterId}/messages`);
-    if (res.ok) {
-      const msgs = await res.json();
-      if (Array.isArray(msgs) && msgs.length > 0) {
-        try {
-          localStorage.setItem(`velora_msgs_${characterId}`, JSON.stringify(msgs));
-        } catch {}
-        return msgs;
-      }
+export function mergeMessageLists(localMsgs: Message[], serverMsgs: Message[]): Message[] {
+  const seen = new Set<string>();
+  const combined: Message[] = [];
+  for (const m of [...localMsgs, ...serverMsgs]) {
+    if (!m || !m.id || m.id.startsWith('temp-')) continue;
+    if (!seen.has(m.id)) {
+      seen.add(m.id);
+      combined.push(m);
     }
-  } catch {}
+  }
+  combined.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  return combined;
+}
 
+export async function fetchMessages(characterId: string): Promise<Message[]> {
+  let localMsgs: Message[] = [];
   try {
     const localMsgsRaw = localStorage.getItem(`velora_msgs_${characterId}`);
     if (localMsgsRaw) {
       const parsed = JSON.parse(localMsgsRaw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) localMsgs = parsed;
     }
   } catch {}
 
-  return [];
+  try {
+    const res = await fetch(`${API_BASE}/characters/${characterId}/messages`);
+    if (res.ok) {
+      const serverMsgs = await res.json();
+      if (Array.isArray(serverMsgs)) {
+        const merged = mergeMessageLists(localMsgs, serverMsgs);
+        if (merged.length > 0) {
+          try {
+            localStorage.setItem(`velora_msgs_${characterId}`, JSON.stringify(merged));
+          } catch {}
+        }
+        return merged;
+      }
+    }
+  } catch {}
+
+  return localMsgs;
 }
 
 function getCharacterContextPayload(characterId: string): { character?: Character; history?: Message[] } {

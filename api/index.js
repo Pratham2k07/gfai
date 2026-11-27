@@ -909,23 +909,23 @@ var aiService = new AIService();
 
 // server/src/replyScheduler.ts
 function calculateReplyDelay(options) {
-  const count = typeof options?.wordCount === "number" && options.wordCount > 0 ? options.wordCount : 18;
-  const seenTypingSeconds = Math.min(10, Math.max(4, Math.round(count * 0.25)));
+  const count = typeof options?.wordCount === "number" && options.wordCount > 0 ? options.wordCount : 12;
+  const seenTypingSeconds = Math.min(5, Math.max(2, Math.round(count * 0.15)));
   const seenTypingMs = seenTypingSeconds * 1e3;
   if (options?.realisticDelaysEnabled === false) {
     return {
-      delayMs: seenTypingMs,
-      seenTypingSeconds,
+      delayMs: 0,
+      seenTypingSeconds: 0,
       bucket: "instant",
       isNight: false,
-      description: `Realistic typing (${seenTypingSeconds}s)`
+      description: `Instant reply`
     };
   }
   const hour = typeof options?.clientHour === "number" && options.clientHour >= 0 && options.clientHour <= 23 ? options.clientHour : (/* @__PURE__ */ new Date()).getHours();
   const isNight = hour >= 22 || hour < 6;
   if (isNight) {
-    const totalNightSec = Math.floor(Math.random() * (20 - 15 + 1)) + 15;
-    const delayMs2 = Math.max(seenTypingMs + 3e3, totalNightSec * 1e3);
+    const totalNightSec = Math.floor(Math.random() * (7 - 4 + 1)) + 4;
+    const delayMs2 = Math.max(seenTypingMs + 1e3, totalNightSec * 1e3);
     return {
       delayMs: delayMs2,
       seenTypingSeconds,
@@ -937,17 +937,17 @@ function calculateReplyDelay(options) {
   const roll = Math.random();
   let totalDaySec;
   let bucket;
-  if (roll < 0.25) {
-    totalDaySec = Math.floor(Math.random() * (40 - 25 + 1)) + 25;
+  if (roll < 0.35) {
+    totalDaySec = Math.floor(Math.random() * (6 - 4 + 1)) + 4;
     bucket = "instant";
-  } else if (roll < 0.7) {
-    totalDaySec = Math.floor(Math.random() * (75 - 45 + 1)) + 45;
+  } else if (roll < 0.8) {
+    totalDaySec = Math.floor(Math.random() * (9 - 6 + 1)) + 6;
     bucket = "medium";
   } else {
-    totalDaySec = Math.floor(Math.random() * (120 - 80 + 1)) + 80;
+    totalDaySec = Math.floor(Math.random() * (12 - 9 + 1)) + 9;
     bucket = "long";
   }
-  const delayMs = Math.max(seenTypingMs + 5e3, totalDaySec * 1e3);
+  const delayMs = Math.max(seenTypingMs + 1500, totalDaySec * 1e3);
   return {
     delayMs,
     seenTypingSeconds,
